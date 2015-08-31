@@ -88,7 +88,9 @@ my (
 	 $HG19MAT,
 	 $MCR,
 	 $removeSymLinksFlag,
-	 $type
+	 $type,
+	 $BSUB,
+	 $CLUSTER
 );
 
 #--This variable holds the current time
@@ -100,7 +102,7 @@ if (
 					 'dataDirectory|d:s'   => \$datadir,
 					 'symLinkFlag|sf:i'    => \$removeSymLinksFlag,
 					 'outputDirectory|o:s' => \$outdir,
-					 'type|t:s' 			=> \$type
+					 'type|t:s'            => \$type
 	 )
   )
 {
@@ -141,8 +143,8 @@ if ($removeSymLinksFlag)
 }
 
 # This is variable is the path to the bin folder
-my $binPath = Bin();
-my ($root) = $binPath =~ /(.*\/).*/;    #get the path above bin
+my $binPath    = Bin();
+my ($root)     = $binPath =~ /(.*\/).*/;    #get the path above bin
 my ($revision) = `svnversion $root`;
 $revision =~ s/\s//g;
 my $configurationPath = $root . "configuration/";   #path to configuration Files
@@ -188,22 +190,23 @@ if ( !$titleFile )
 		exit(1);
 	}
 }
-if($type){
-	if($type eq "germline")
-	{	
-    	print "Looking into the raw data directory for germline title file\n";
-    	$titleFile = `ls $datadir/title_file.nvn.txt`;
-    	chomp($titleFile);
-    
-    	if (!$titleFile) {
-        	print "Germline title file could not be located in the raw data directory, pipeline requires the title file to run. Please see usage.\n";
-        	Usage();
-        	exit(1);
-    	}
-
+if ($type)
+{
+	if ( $type eq "germline" )
+	{
+		print "Looking into the raw data directory for germline title file\n";
+		$titleFile = `ls $datadir/title_file.nvn.txt`;
+		chomp($titleFile);
+		if ( !$titleFile )
+		{
+			print
+"Germline title file could not be located in the raw data directory, pipeline requires the title file to run. Please see usage.\n";
+			Usage();
+			exit(1);
+		}
 	}
-}
-else{
+} else
+{
 	$type = "somatic";
 }
 
@@ -389,6 +392,15 @@ if ( !$JAVA )
 	print "JAVA=$JAVA\n";
 }
 
+if ($CLUSTER)
+{
+	print "The CLUSTER in use is $CLUSTER.\n";
+} else
+{
+	print "Please enter the Cluster type.See Usage\n";
+	Usage();
+	exit;
+}
 #Check if path to FilterSV script is given
 if ( !$FilterSV )
 {
@@ -616,7 +628,6 @@ if ( !$DistanceBtwTumorNormalCTX )
 tie( my %classPerBarcode, 'Tie::IxHash' );
 for ( my $i = 0 ; $i < scalar(@$barcode) ; $i++ )
 {
-
 	#print "$$barcode[$i] => $$class[$i]\n";
 	$classPerBarcode{ $$barcode[$i] . "_" . $$titleSampleId[$i] } = $$class[$i];
 }
@@ -648,7 +659,6 @@ my $processCount    = 0;
 my $parseFilenames;
 while ( $processCount < $numberOfProcess )
 {
-
 	#print "@allProcess\n";
 	my $runProcess = shift(@allProcess);
 
@@ -862,6 +872,7 @@ sub GetConfiguration
 		$barcodeFile        = $location{"BarcodeKey"};
 		$adaptorFile        = $location{"AdaptorKey"};
 		$QSUB               = $location{"QSUB"};
+		$BSUB               = $location{"BSUB"};
 		$TrimGalore         = $location{"TrimGalore"};
 		$ZCAT               = $location{"ZCAT"};
 		$GZIP               = $location{"GZIP"};
@@ -890,6 +901,7 @@ sub GetConfiguration
 		$process                = $parameters{"Process"};
 		$prog                   = $parameters{"Program"};
 		$nprocessors            = $parameters{"NumberOfProcessors"};
+		$CLUSTER                = $parameters{"CLUSTER"};
 		$OverallSupportingReads = $parameters{"OverallSupportingReads"};
 		$OverallSupportingReadsHotspot =
 		  $parameters{"OverallSupportingReadsHotspot"};
@@ -959,14 +971,12 @@ sub WaitToFinish
 		#print "$outdir/$wfile\n";
 		while ( -e "$outdir/$wfile" )
 		{
-
 			#print "$outdir/$wfile\n";
 			open( FH, "<", "$outdir/$wfile" );
 			while (<FH>)
 			{
 				if ( $_ =~ /This is Done/ig )
 				{
-
 					#print "\nFinished: $wfile\n";
 					last;
 				} else
@@ -1114,12 +1124,13 @@ sub ReadTitleFile
 		push( @baitVersion,  $newDatacols[10] );
 	}
 	close(TFH);
-	my $poolName         = $pool[0];
+	my $poolName = $pool[0];
 	my $newtitleFileName;
-	if($type eq "germline"){
+	if ( $type eq "germline" )
+	{
 		$newtitleFileName = $poolName . "_title.nvn.txt";
-	}
-	else{
+	} else
+	{
 		$newtitleFileName = $poolName . "_title.txt";
 	}
 	if ( !-e "$outdir/$newtitleFileName" )
@@ -1137,9 +1148,9 @@ sub ReadTitleFile
 #sort by barcode name:
 sub lowestNumber
 {
-	my $files = shift;
+	my $files     = shift;
 	my @filenames = split( ",", $files );
-	my ($number) = $filenames[0] =~ m/.*_bc(\d{1,2})_.*/g;
+	my ($number)  = $filenames[0] =~ m/.*_bc(\d{1,2})_.*/g;
 	return $number;
 }
 #####################################
@@ -1224,62 +1235,114 @@ sub MergeDataFromDirectory
 				#Read1
 				my $read1MergeCMD =
 				  "'$ZCAT $read1ListName | $GZIP > $read1Name'";
-
+				if ( $CLUSTER eq "SGE" )
+				{
 #`qsub -q all.q -V -wd $outdir -N MergeRead1.$newIndex.$i.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -e MergeRead1.$newIndex.$i.$$.err -o /dev/null -b y "/bin/zcat $read1ListName | gzip > $read1Name"`;
-				launchQsub(
-							$read1MergeCMD,
-							$outdir,
-							"8G",
-							"/dev/null",
-							"MergeRead1.$newIndex.$i.$$.stderr",
-							"1",
-							"$queue",
-							"MergeRead1.$newIndex.$i.$$",
-							"Null"
-				);
+					launchQsub(
+								$read1MergeCMD,
+								$outdir,
+								"8G",
+								"/dev/null",
+								"MergeRead1.$newIndex.$i.$$.stderr",
+								"1",
+								"$queue",
+								"MergeRead1.$newIndex.$i.$$",
+								"Null"
+					);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MergeRead1.$newIndex.$i.$$ -N NotifyMR.Read1.$i.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyMR.Read1.$i.$$.stat -b y "$outdir/Notify.csh"`;
-				launchQsub(
-							$notifyMergeCMD,
-							$outdir,
-							"2G",
-							"NotifyMR.Read1.$i.$$.stat",
-							"NotifyMR.Read1.$i.$$.stderr",
-							"1",
-							"$queue",
-							"NotifyMR.Read1.$i.$$",
-							"MergeRead1.$newIndex.$i.$$"
-				);
+					launchQsub(
+								$notifyMergeCMD,
+								$outdir,
+								"2G",
+								"NotifyMR.Read1.$i.$$.stat",
+								"NotifyMR.Read1.$i.$$.stderr",
+								"1",
+								"$queue",
+								"NotifyMR.Read1.$i.$$",
+								"MergeRead1.$newIndex.$i.$$"
+					);
+				} else
+				{
+					launchBsub(
+								$read1MergeCMD,
+								$outdir,
+								"8G",
+								"/dev/null",
+								"MergeRead1.$newIndex.$i.$$.stderr",
+								"1",
+								"$queue",
+								"MergeRead1.$newIndex.$i.$$",
+								"Null"
+					);
+					launchBsub(
+								$notifyMergeCMD,
+								$outdir,
+								"2G",
+								"NotifyMR.Read1.$i.$$.stat",
+								"NotifyMR.Read1.$i.$$.stderr",
+								"1",
+								"$queue",
+								"NotifyMR.Read1.$i.$$",
+								"MergeRead1.$newIndex.$i.$$"
+					);
+				}
 
 				#Read2
 				my $read2MergeCMD =
 				  "'$ZCAT $read2ListName | $GZIP > $read2Name'";
-
+				if ( $CLUSTER eq "SGE" )
+				{
 #`qsub -q all.q -V -wd $outdir -N MergeRead2.$newIndex.$i.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -e MergeRead2.$newIndex.$i.$$.err -o /dev/null -b y "/bin/zcat $read2ListName | gzip > $read2Name"`;
-				launchQsub(
-							$read2MergeCMD,
-							$outdir,
-							"8G",
-							"/dev/null",
-							"MergeRead2.$newIndex.$i.$$.stderr",
-							"1",
-							"$queue",
-							"MergeRead2.$newIndex.$i.$$",
-							"Null"
-				);
+					launchQsub(
+								$read2MergeCMD,
+								$outdir,
+								"8G",
+								"/dev/null",
+								"MergeRead2.$newIndex.$i.$$.stderr",
+								"1",
+								"$queue",
+								"MergeRead2.$newIndex.$i.$$",
+								"Null"
+					);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MergeRead2.$newIndex.$i.$$ -N NotifyMR.Read2.$i.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyMR.Read2.$i.$$.stat -b y "$outdir/Notify.csh"`;
-				launchQsub(
-							$notifyMergeCMD,
-							$outdir,
-							"2G",
-							"NotifyMR.Read2.$i.$$.stat",
-							"NotifyMR.Read2.$i.$$.stderr",
-							"1",
-							"$queue",
-							"NotifyMR.Read2.$i.$$",
-							"MergeRead2.$newIndex.$i.$$"
-				);
+					launchQsub(
+								$notifyMergeCMD,
+								$outdir,
+								"2G",
+								"NotifyMR.Read2.$i.$$.stat",
+								"NotifyMR.Read2.$i.$$.stderr",
+								"1",
+								"$queue",
+								"NotifyMR.Read2.$i.$$",
+								"MergeRead2.$newIndex.$i.$$"
+					);
+				} else
+				{
+					launchBsub(
+								$read2MergeCMD,
+								$outdir,
+								"8G",
+								"/dev/null",
+								"MergeRead2.$newIndex.$i.$$.stderr",
+								"1",
+								"$queue",
+								"MergeRead2.$newIndex.$i.$$",
+								"Null"
+					);
+					launchBsub(
+								$notifyMergeCMD,
+								$outdir,
+								"2G",
+								"NotifyMR.Read2.$i.$$.stat",
+								"NotifyMR.Read2.$i.$$.stderr",
+								"1",
+								"$queue",
+								"NotifyMR.Read2.$i.$$",
+								"MergeRead2.$newIndex.$i.$$"
+					);
+				}
 				push( @notifyNames,    "NotifyMR.Read1.$i.$$.stat" );
 				push( @notifyNames,    "NotifyMR.Read2.$i.$$.stat" );
 				push( @parseFilenames, "$read1Name,$read2Name" );
@@ -1338,12 +1401,12 @@ sub MergeDataFromDirectory
 				exit;
 			}
 			my $read1Name =
-			    $outdir . "/" 
+			    $outdir . "/"
 			  . $name . "_L00"
 			  . $lane[$sampleNum]
 			  . "_R1_mrg.fastq.gz";
 			my $read2Name =
-			    $outdir . "/" 
+			    $outdir . "/"
 			  . $name . "_L00"
 			  . $lane[$sampleNum]
 			  . "_R2_mrg.fastq.gz";
@@ -1368,62 +1431,114 @@ sub MergeDataFromDirectory
 				#Read1
 				my $read1MergeCMD =
 				  "'$ZCAT $read1ListName | $GZIP > $read1Name'";
-
+				if ( $CLUSTER eq "SGE" )
+				{
 #`qsub -q all.q -V -wd $outdir -N MergeRead1.$newIndex.$sampleNum.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -e MergeRead1.$newIndex.$sampleNum.$$.err -o /dev/null -b y "/bin/zcat $read1ListName | gzip > $read1Name"`;
-				launchQsub(
-							$read1MergeCMD,
-							$outdir,
-							"8G",
-							"/dev/null",
-							"MergeRead1.$newIndex.$sampleNum.$$.stderr",
-							"1",
-							"$queue",
-							"MergeRead1.$newIndex.$sampleNum.$$",
-							"Null"
-				);
+					launchQsub(
+								$read1MergeCMD,
+								$outdir,
+								"8G",
+								"/dev/null",
+								"MergeRead1.$newIndex.$sampleNum.$$.stderr",
+								"1",
+								"$queue",
+								"MergeRead1.$newIndex.$sampleNum.$$",
+								"Null"
+					);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MergeRead1.$newIndex.$sampleNum.$$ -N NotifyMR.Read1.$sampleNum.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyMR.Read1.$sampleNum.$$.stat -b y "$outdir/Notify.csh"`;
-				launchQsub(
-							$notifyMergeCMD,
-							$outdir,
-							"2G",
-							"NotifyMR.Read1.$sampleNum.$$.stat",
-							"NotifyMR.Read1.$sampleNum.$$.stderr",
-							"1",
-							"$queue",
-							"NotifyMR.Read1.$sampleNum.$$",
-							"MergeRead1.$newIndex.$sampleNum.$$"
-				);
+					launchQsub(
+								$notifyMergeCMD,
+								$outdir,
+								"2G",
+								"NotifyMR.Read1.$sampleNum.$$.stat",
+								"NotifyMR.Read1.$sampleNum.$$.stderr",
+								"1",
+								"$queue",
+								"NotifyMR.Read1.$sampleNum.$$",
+								"MergeRead1.$newIndex.$sampleNum.$$"
+					);
+				} else
+				{
+					launchBsub(
+								$read1MergeCMD,
+								$outdir,
+								"8G",
+								"/dev/null",
+								"MergeRead1.$newIndex.$sampleNum.$$.stderr",
+								"1",
+								"$queue",
+								"MergeRead1.$newIndex.$sampleNum.$$",
+								"Null"
+					);
+					launchBsub(
+								$notifyMergeCMD,
+								$outdir,
+								"2G",
+								"NotifyMR.Read1.$sampleNum.$$.stat",
+								"NotifyMR.Read1.$sampleNum.$$.stderr",
+								"1",
+								"$queue",
+								"NotifyMR.Read1.$sampleNum.$$",
+								"MergeRead1.$newIndex.$sampleNum.$$"
+					);
+				}
 
 				#Read2
 				my $read2MergeCMD =
 				  "'$ZCAT $read2ListName | $GZIP > $read2Name'";
-
+				if ( $CLUSTER eq "SGE" )
+				{
 #`qsub -q all.q -V -wd $outdir -N MergeRead2.$newIndex.$sampleNum.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -e MergeRead2.$newIndex.$sampleNum.$$.err -o /dev/null -b y "/bin/zcat $read2ListName | gzip > $read2Name"`;
-				launchQsub(
-							$read2MergeCMD,
-							$outdir,
-							"8G",
-							"/dev/null",
-							"MergeRead2.$newIndex.$sampleNum.$$.stderr",
-							"1",
-							"$queue",
-							"MergeRead2.$newIndex.$sampleNum.$$",
-							"Null"
-				);
+					launchQsub(
+								$read2MergeCMD,
+								$outdir,
+								"8G",
+								"/dev/null",
+								"MergeRead2.$newIndex.$sampleNum.$$.stderr",
+								"1",
+								"$queue",
+								"MergeRead2.$newIndex.$sampleNum.$$",
+								"Null"
+					);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MergeRead2.$newIndex.$sampleNum.$$ -N NotifyMR.Read2.$sampleNum.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyMR.Read2.$sampleNum.$$.stat -b y "$outdir/Notify.csh"`;
-				launchQsub(
-							$notifyMergeCMD,
-							$outdir,
-							"2G",
-							"NotifyMR.Read2.$sampleNum.$$.stat",
-							"NotifyMR.Read2.$sampleNum.$$.stderr",
-							"1",
-							"$queue",
-							"NotifyMR.Read2.$sampleNum.$$",
-							"MergeRead2.$newIndex.$sampleNum.$$"
-				);
+					launchQsub(
+								$notifyMergeCMD,
+								$outdir,
+								"2G",
+								"NotifyMR.Read2.$sampleNum.$$.stat",
+								"NotifyMR.Read2.$sampleNum.$$.stderr",
+								"1",
+								"$queue",
+								"NotifyMR.Read2.$sampleNum.$$",
+								"MergeRead2.$newIndex.$sampleNum.$$"
+					);
+				} else
+				{
+					launchBsub(
+								$read2MergeCMD,
+								$outdir,
+								"8G",
+								"/dev/null",
+								"MergeRead2.$newIndex.$sampleNum.$$.stderr",
+								"1",
+								"$queue",
+								"MergeRead2.$newIndex.$sampleNum.$$",
+								"Null"
+					);
+					launchBsub(
+								$notifyMergeCMD,
+								$outdir,
+								"2G",
+								"NotifyMR.Read2.$sampleNum.$$.stat",
+								"NotifyMR.Read2.$sampleNum.$$.stderr",
+								"1",
+								"$queue",
+								"NotifyMR.Read2.$sampleNum.$$",
+								"MergeRead2.$newIndex.$sampleNum.$$"
+					);
+				}
 				push( @notifyNames,    "NotifyMR.Read1.$sampleNum.$$.stat" );
 				push( @notifyNames,    "NotifyMR.Read2.$sampleNum.$$.stat" );
 				push( @parseFilenames, "$read1Name,$read2Name" );
@@ -1575,12 +1690,12 @@ sub RunTrimGalore
 {
 	my ( $file1, $file2, $outdir, $adaptorList, $id ) = @_;
 	my %barcodeList = %$adaptorList;
-	my ($barcode) = $file1 =~ /.*_(bc\d+)_.*/;
-	my $adapter1 = $barcodeList{$barcode};
+	my ($barcode)   = $file1 =~ /.*_(bc\d+)_.*/;
+	my $adapter1    = $barcodeList{$barcode};
 	my $adapter2 = "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT";
-	my ($basename1) = $file1 =~ /(.*)\.fastq.gz/;
+	my ($basename1)  = $file1 =~ /(.*)\.fastq.gz/;
 	my $outFilename1 = "$basename1" . "_cl.fastq.gz";
-	my ($basename2) = $file2 =~ /(.*)\.fastq.gz/;
+	my ($basename2)  = $file2 =~ /(.*)\.fastq.gz/;
 	my $outFilename2 = "$basename2" . "_cl.fastq.gz";
 
 	if (     ( -e "$outFilename1" )
@@ -1595,25 +1710,44 @@ sub RunTrimGalore
 	{
 		my $clipReadCMD =
 "$PERL $TrimGalore --paired --gzip -q 1 --suppress_warn --stringency 3 -length 25 -o $outdir -a $adapter1 -a2 $adapter2 $file1 $file2";
-
+		if ( $CLUSTER eq "SGE" )
+		{
 #`$QSUB -q $queue -V -wd $outdir -N Clipping.$id.$$ -o Clipping.$id.$$.stdout -e Clipping.$id.$$.stderr -l h_vmem=2G,virtual_free=2G -pe smp 1  -b y "$PERL $TrimGalore --paired --gzip -q 1 --suppress_warn --stringency 3 -length 25 -o $outdir -a $adapter1 -a2 $adapter2 $file1 $file2"`;
-		launchQsub(
-					$clipReadCMD,             $outdir,
-					"2G",                     "Clipping.$id.$$.stdout",
-					"Clipping.$id.$$.stderr", "1",
-					$queue,                   "Clipping.$id.$$",
-					"Null"
-		);
+			launchQsub(
+						$clipReadCMD,             $outdir,
+						"2G",                     "Clipping.$id.$$.stdout",
+						"Clipping.$id.$$.stderr", "1",
+						$queue,                   "Clipping.$id.$$",
+						"Null"
+			);
 
 #`$QSUB -q $queue -V -wd $outdir -hold_jid Clipping.$id.$$ -N NotifyCR.$id.$$ -e NotifyCR.$id.$$.stderr -o NotifyCR.$id.$$.stat -l h_vmem=2G,virtual_free=2G -pe smp 1 -b y "$outdir/Notify.csh"`;
-		my $notifyClipCMD = "$outdir/Notify.csh";
-		launchQsub(
-					$notifyClipCMD,           $outdir,
-					"2G",                     "NotifyCR.$id.$$.stat",
-					"NotifyCR.$id.$$.stderr", "1",
-					"$queue",                 "NotifyCR.$id.$$",
-					"Clipping.$id.$$"
-		);
+			my $notifyClipCMD = "$outdir/Notify.csh";
+			launchQsub(
+						$notifyClipCMD,           $outdir,
+						"2G",                     "NotifyCR.$id.$$.stat",
+						"NotifyCR.$id.$$.stderr", "1",
+						"$queue",                 "NotifyCR.$id.$$",
+						"Clipping.$id.$$"
+			);
+		} else
+		{
+			launchQsub(
+						$clipReadCMD,             $outdir,
+						"2G",                     "Clipping.$id.$$.stdout",
+						"Clipping.$id.$$.stderr", "1",
+						$queue,                   "Clipping.$id.$$",
+						"Null"
+			);
+			my $notifyClipCMD = "$outdir/Notify.csh";
+			launchQsub(
+						$notifyClipCMD,           $outdir,
+						"2G",                     "NotifyCR.$id.$$.stat",
+						"NotifyCR.$id.$$.stderr", "1",
+						"$queue",                 "NotifyCR.$id.$$",
+						"Clipping.$id.$$"
+			);
+		}
 	}
 	return ( "$outFilename1", "$outFilename2", "NotifyCR.$id.$$.stat" );
 }
@@ -1630,9 +1764,9 @@ sub RunBwaMem
 		$basename = basename($basename);
 	}
 	my @sampleDetails = split( "_bc", $basename );
-	my $sampleId = $sampleDetails[0];
-	my ($barcode) = $basename =~ /.*_(bc\d+)_.*/;
-	my ($pool)    = $basename =~ /.*bc\d+_(.*)_L\d{1,3}_.*/;
+	my $sampleId      = $sampleDetails[0];
+	my ($barcode)     = $basename =~ /.*_(bc\d+)_.*/;
+	my ($pool)        = $basename =~ /.*bc\d+_(.*)_L\d{1,3}_.*/;
 	if ( ( -e "$outFilename" ) and ( ( -s "$outFilename" ) != 0 ) )
 	{
 		print
@@ -1642,21 +1776,52 @@ sub RunBwaMem
 	{
 		my $bwaCMD =
 "\"$bwa mem -t 4 -PM -R \'\@RG\\tID:$basename\\tLB:$id\\tSM:$sampleId\\tPL:Illumina\\tPU:$barcode\\tCN:MSKCC\' $refFile $fastq1 $fastq2\"";
-
+		if ( $CLUSTER eq "SGE" )
+		{
 #`qsub -q all.q -wd $outdir -N bwaMem.$id.$$ -l h_vmem=6G,virtual_free=6G -pe smp $nprocessors -o $outFilename -e /dev/null -b y "$bwa mem -t 4 -PM -R \'\@RG\tID:$basename\tLB:$id\tSM:$sampleId\tPL:Illumina\tPU:$barcode\tCN:BergerLab_MSKCC\' $refFile $fastq1 $fastq2"`;
-		launchQsub( $bwaCMD, $outdir, "6G", $outFilename,
-					"bwaMem.$id.$$.stderr", $nprocessors, $queue,
-					"bwaMem.$id.$$", "Null" );
+			launchQsub(
+						$bwaCMD,                $outdir,
+						"6G",                   $outFilename,
+						"bwaMem.$id.$$.stderr", $nprocessors,
+						$queue,                 "bwaMem.$id.$$",
+						"Null"
+			);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid bwaMem.$id.$$ -N NotifyBwaMem.$id.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyBwaMem.$id.$$.stat -b y "$outdir/Notify.csh"`;
-		my $notifyBwaCMD = "$outdir/Notify.csh";
-		launchQsub(
-					$notifyBwaCMD,                $outdir,
-					"2G",                         "NotifyBwaMem.$id.$$.stat",
-					"NotifyBwaMem.$id.$$.stderr", "1",
-					"$queue",                     "NotifyBwaMem.$id.$$",
-					"bwaMem.$id.$$"
-		);
+			my $notifyBwaCMD = "$outdir/Notify.csh";
+			launchQsub(
+						$notifyBwaCMD,
+						$outdir,
+						"2G",
+						"NotifyBwaMem.$id.$$.stat",
+						"NotifyBwaMem.$id.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyBwaMem.$id.$$",
+						"bwaMem.$id.$$"
+			);
+		} else
+		{
+			launchBsub(
+						$bwaCMD,                $outdir,
+						"6G",                   $outFilename,
+						"bwaMem.$id.$$.stderr", $nprocessors,
+						$queue,                 "bwaMem.$id.$$",
+						"Null"
+			);
+			my $notifyBwaCMD = "$outdir/Notify.csh";
+			launchBsub(
+						$notifyBwaCMD,
+						$outdir,
+						"2G",
+						"NotifyBwaMem.$id.$$.stat",
+						"NotifyBwaMem.$id.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyBwaMem.$id.$$",
+						"bwaMem.$id.$$"
+			);
+		}
 	}
 	return ( "$outFilename", "NotifyBwaMem.$id.$$.stat" );
 }
@@ -1677,28 +1842,52 @@ sub RunSortSam
 	{
 		my $sortsamCMD =
 "$JAVA -Xmx4g -jar $PICARD/SortSam.jar I=$samFile O=$outFilename SO=coordinate TMP_DIR=$TMPDIR COMPRESSION_LEVEL=0 CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT";
-		launchQsub(
-					$sortsamCMD,             $outdir,
-					"8G",                    "SortSam.$id.$$.stdout",
-					"SortSam.$id.$$.stderr", "1",
-					$queue,                  "SortSam.$id.$$",
-					"Null"
-		);
+		if ( $CLUSTER eq "SGE" )
+		{
+			launchQsub(
+						$sortsamCMD,             $outdir,
+						"8G",                    "SortSam.$id.$$.stdout",
+						"SortSam.$id.$$.stderr", "1",
+						$queue,                  "SortSam.$id.$$",
+						"Null"
+			);
 
 #`qsub -q all.q -wd $outdir -N SortSam.$id.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -o /dev/null -e /dev/null -b y "$JAVA -Xmx4g -jar $PICARD/SortSam.jar I=$samFile O=$outFilename SO=coordinate TMP_DIR=$TMPDIR COMPRESSION_LEVEL=0 CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT"`;
 #`qsub -q all.q -V -wd $outdir -hold_jid SortSam.$id.$$ -N NotifySortSam.$id.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifySortSam.$id.$$.stat -b y "$outdir/Notify.csh"`;
-		my $notifySortsamCMD = "$outdir/Notify.csh";
-		launchQsub(
-					$notifySortsamCMD,
-					$outdir,
-					"2G",
-					"NotifySortSam.$id.$$.stat",
-					"NotifySortSam.$id.$$.stderr",
-					"1",
-					"$queue",
-					"NotifySortSam.$id.$$",
-					"SortSam.$id.$$"
-		);
+			my $notifySortsamCMD = "$outdir/Notify.csh";
+			launchQsub(
+						$notifySortsamCMD,
+						$outdir,
+						"2G",
+						"NotifySortSam.$id.$$.stat",
+						"NotifySortSam.$id.$$.stderr",
+						"1",
+						"$queue",
+						"NotifySortSam.$id.$$",
+						"SortSam.$id.$$"
+			);
+		} else
+		{
+			launchBsub(
+						$sortsamCMD,             $outdir,
+						"8G",                    "SortSam.$id.$$.stdout",
+						"SortSam.$id.$$.stderr", "1",
+						$queue,                  "SortSam.$id.$$",
+						"Null"
+			);
+			my $notifySortsamCMD = "$outdir/Notify.csh";
+			launchBsub(
+						$notifySortsamCMD,
+						$outdir,
+						"2G",
+						"NotifySortSam.$id.$$.stat",
+						"NotifySortSam.$id.$$.stderr",
+						"1",
+						"$queue",
+						"NotifySortSam.$id.$$",
+						"SortSam.$id.$$"
+			);
+		}
 	}
 	return ( "$outFilename", "NotifySortSam.$id.$$.stat" );
 }
@@ -1710,7 +1899,7 @@ sub RunMarkDuplicates
 	my ( $bamFile, $outdir, $id ) = @_;
 	my $outFilename     = $bamFile;
 	my $metricsFilename = $bamFile;
-	$outFilename     =~ s/\.bam/_MD\.bam/g;
+	$outFilename =~ s/\.bam/_MD\.bam/g;
 	$metricsFilename =~ s/\.bam/_MD\.metrics/g;
 	if ( ( -e "$outFilename" ) and ( ( -s "$outFilename" ) != 0 ) )
 	{
@@ -1719,22 +1908,36 @@ sub RunMarkDuplicates
 		return ( "$outFilename", 'NULL' );
 	} else
 	{
-
 #`qsub -q all.q -V -wd $outdir -N MD.$id.$$  -o /dev/null -e /dev/null -l h_vmem=8G,virtual_free=8G -pe smp 1 -b y "$JAVA -Xmx4g -jar $PICARD/MarkDuplicates.jar I=$bamFile O=$outFilename ASSUME_SORTED=true METRICS_FILE=$metricsFilename TMP_DIR=$TMPDIR COMPRESSION_LEVEL=0 CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT"`;
 		my $mdCMD =
 "$JAVA -Xmx4g -jar $PICARD/MarkDuplicates.jar I=$bamFile O=$outFilename ASSUME_SORTED=true METRICS_FILE=$metricsFilename TMP_DIR=$TMPDIR COMPRESSION_LEVEL=0 CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT";
-		launchQsub( $mdCMD, $outdir, "8G", "MD.$id.$$.stdout",
-					"MD.$id.$$.stderr", "1", $queue, "MD.$id.$$", "Null" );
+		if ( $CLUSTER eq "SGE" )
+		{
+			launchQsub( $mdCMD, $outdir, "8G", "MD.$id.$$.stdout",
+						"MD.$id.$$.stderr", "1", $queue, "MD.$id.$$", "Null" );
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MD.$id.$$ -N NotifyMD.$id.$$ -e NotifyMD.$id.$$.stderr -o NotifyMD.$id.$$.stat -l h_vmem=2G,virtual_free=2G -pe smp 1 -b y "$outdir/Notify.csh"`;
-		my $notifyMdCMD = "$outdir/Notify.csh";
-		launchQsub(
-					$notifyMdCMD,             $outdir,
-					"2G",                     "NotifyMD.$id.$$.stat",
-					"NotifyMD.$id.$$.stderr", "1",
-					"$queue",                 "NotifyMD.$id.$$",
-					"MD.$id.$$"
-		);
+			my $notifyMdCMD = "$outdir/Notify.csh";
+			launchQsub(
+						$notifyMdCMD,             $outdir,
+						"2G",                     "NotifyMD.$id.$$.stat",
+						"NotifyMD.$id.$$.stderr", "1",
+						"$queue",                 "NotifyMD.$id.$$",
+						"MD.$id.$$"
+			);
+		} else
+		{
+			launchBsub( $mdCMD, $outdir, "8G", "MD.$id.$$.stdout",
+						"MD.$id.$$.stderr", "1", $queue, "MD.$id.$$", "Null" );
+			my $notifyMdCMD = "$outdir/Notify.csh";
+			launchBsub(
+						$notifyMdCMD,             $outdir,
+						"2G",                     "NotifyMD.$id.$$.stat",
+						"NotifyMD.$id.$$.stderr", "1",
+						"$queue",                 "NotifyMD.$id.$$",
+						"MD.$id.$$"
+			);
+		}
 	}
 	return ( "$outFilename", "NotifyMD.$id.$$.stat" );
 }
@@ -1785,7 +1988,7 @@ sub CalcHsMetrics
 sub RunHsMetrics
 {
 	my ( $bamFile, $outdir, $id ) = @_;
-	my ($basename) = $bamFile =~ /(.*)\.bam/;
+	my ($basename)        = $bamFile =~ /(.*)\.bam/;
 	my $HSmetricsFilename = $basename . ".HSmetrics.txt";
 	my @notifynames       = ();
 
@@ -1801,27 +2004,51 @@ sub RunHsMetrics
 "$JAVA -Xmx4g -jar $PICARD/CalculateHsMetrics.jar I=$bamFile O=$HSmetricsFilename BI=$baitIntervalFile TI=$targetIntervalFile REFERENCE_SEQUENCE=$refFile TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=LENIENT";
 
 #`qsub -q all.q -wd $outdir -N HSmetrics.$id.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -o /dev/null -e /dev/null -b y "$JAVA -Xmx4g -jar $PICARD/CalculateHsMetrics.jar I=$bamFile O=$HSmetricsFilename BI=$baitIntervalFile TI=$targetIntervalFile REFERENCE_SEQUENCE=$refFile TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=LENIENT"`;
-		launchQsub(
-					$hsMetricsCMD,             $outdir,
-					"8G",                      "HSmetrics.$id.$$.stdout",
-					"HSmetrics.$id.$$.stderr", "1",
-					$queue,                    "HSmetrics.$id.$$",
-					"Null"
-		);
+		if ( $CLUSTER eq "SGE" )
+		{
+			launchQsub(
+						$hsMetricsCMD,             $outdir,
+						"8G",                      "HSmetrics.$id.$$.stdout",
+						"HSmetrics.$id.$$.stderr", "1",
+						$queue,                    "HSmetrics.$id.$$",
+						"Null"
+			);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid HSmetrics.$id.$$ -N NotifyHSmetrics.$id.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyHSmetrics.$id.$$.stat -b y "$outdir/Notify.csh"`;
-		my $notifyHsMetricsCMD = "$outdir/Notify.csh";
-		launchQsub(
-					$notifyHsMetricsCMD,
-					$outdir,
-					"2G",
-					"NotifyHSmetrics.$id.$$.stat",
-					"NotifyHSmetrics.$id.$$.stderr",
-					"1",
-					"$queue",
-					"NotifyHSmetrics.$id.$$",
-					"HSmetrics.$id.$$"
-		);
+			my $notifyHsMetricsCMD = "$outdir/Notify.csh";
+			launchQsub(
+						$notifyHsMetricsCMD,
+						$outdir,
+						"2G",
+						"NotifyHSmetrics.$id.$$.stat",
+						"NotifyHSmetrics.$id.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyHSmetrics.$id.$$",
+						"HSmetrics.$id.$$"
+			);
+		} else
+		{
+			launchBsub(
+						$hsMetricsCMD,             $outdir,
+						"8G",                      "HSmetrics.$id.$$.stdout",
+						"HSmetrics.$id.$$.stderr", "1",
+						$queue,                    "HSmetrics.$id.$$",
+						"Null"
+			);
+			my $notifyHsMetricsCMD = "$outdir/Notify.csh";
+			launchBsub(
+						$notifyHsMetricsCMD,
+						$outdir,
+						"2G",
+						"NotifyHSmetrics.$id.$$.stat",
+						"NotifyHSmetrics.$id.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyHSmetrics.$id.$$",
+						"HSmetrics.$id.$$"
+			);
+		}
 		push( @notifynames, "NotifyHSmetrics.$id.$$.stat" );
 	}
 	return ( \@notifynames );
@@ -1881,14 +2108,12 @@ sub CallStructuralVariants
 	{
 		if ( exists $groupedFilenames{ @$patientId[$fCount] } )
 		{
-
 			#print "$file:$fCount:@$patientId[$fCount]\n";
 			my $files = $groupedFilenames{ @$patientId[$fCount] };
 			$files = "$files" . ",$file";
 			$groupedFilenames{ @$patientId[$fCount] } = "$files";
 		} else
 		{
-
 			#print "$file:$fCount:@$patientId[$fCount]\n";
 			$groupedFilenames{ @$patientId[$fCount] } = "$file";
 		}
@@ -1900,7 +2125,6 @@ sub CallStructuralVariants
 	my $poolNormal;
 	foreach my $file (@names)
 	{
-
 		#print "$file\n";
 		my ($fileBarcode)  = $file =~ /.*_(bc\d+)_.*/;
 		my ($fileSampleId) = $file =~ /(.*)_bc\d+_/;
@@ -2122,7 +2346,7 @@ sub CallStructuralVariants
 			  $classPerBarcode{ $fileBarcode . "_" . $fileSampleId };
 			next if ( $fileClass =~ m/Normal/i );
 			print "Final2:Tumor->$file\nNormal->$normal\n\n";
-			my ($tFileId)   = $file   =~ /(.*)_$poolName\_/;
+			my ($tFileId)   = $file =~ /(.*)_$poolName\_/;
 			my ($nPoolName) = $normal =~ /.*_bc\d+_(.*)_L\d{1,3}.*/;
 			my ($nFileId)   = $normal =~ /(.*)_$nPoolName\_/;
 			$NormalPerFile{$tFileId} = $nFileId;
@@ -2275,49 +2499,97 @@ sub RunDelly
 	#Launch only if folder does not exists
 	if ( $tFlag == 2 )
 	{
-		&launchQsub(
-					 $dellyT_cmd,    $sampleTumorOutput,
-					 "8G",           $dellyT_stdout,
-					 $dellyT_stderr, "2",
-					 $runQueue,      $dellyT_jname,
-					 "Null"
-		);
-		&launchQsub(
-					 $duppyT_cmd,    $sampleTumorOutput,
-					 "8G",           $duppyT_stdout,
-					 $duppyT_stderr, "2",
-					 $runQueue,      $duppyT_jname,
-					 "Null"
-		);
-		&launchQsub(
-					 $invyT_cmd,    $sampleTumorOutput,
-					 "8G",          $invyT_stdout,
-					 $invyT_stderr, "2",
-					 $runQueue,     $invyT_jname,
-					 "Null"
-		);
-		&launchQsub(
-					 $jumpyT_cmd,    $sampleTumorOutput,
-					 "8G",           $jumpyT_stdout,
-					 $jumpyT_stderr, "2",
-					 $runQueue,      $jumpyT_jname,
-					 "Null"
-		);
+		if ( $CLUSTER eq "SGE" )
+		{
+			&launchQsub(
+						 $dellyT_cmd,    $sampleTumorOutput,
+						 "8G",           $dellyT_stdout,
+						 $dellyT_stderr, "2",
+						 $runQueue,      $dellyT_jname,
+						 "Null"
+			);
+			&launchQsub(
+						 $duppyT_cmd,    $sampleTumorOutput,
+						 "8G",           $duppyT_stdout,
+						 $duppyT_stderr, "2",
+						 $runQueue,      $duppyT_jname,
+						 "Null"
+			);
+			&launchQsub(
+						 $invyT_cmd,    $sampleTumorOutput,
+						 "8G",          $invyT_stdout,
+						 $invyT_stderr, "2",
+						 $runQueue,     $invyT_jname,
+						 "Null"
+			);
+			&launchQsub(
+						 $jumpyT_cmd,    $sampleTumorOutput,
+						 "8G",           $jumpyT_stdout,
+						 $jumpyT_stderr, "2",
+						 $runQueue,      $jumpyT_jname,
+						 "Null"
+			);
 
-		#&launchQsub(
-		#	$jumpyN_cmd,    $sampleTumorOutput,
-		#	"10G",          $jumpyN_stdout,
-		#	$jumpyN_stderr, "1",
-		#	$runQueue,      $jumpyN_jname,
-		#	"Null"
-		#);
-		&launchQsub(
-					 $notify_cmd,     $outdir,
-					 "2G",            $notifyT_stdout,
-					 $notifyT_stderr, "1",
-					 $runQueue,       $notifyT_jname,
-					 $notifyT_hjname
-		);
+			#&launchQsub(
+			#	$jumpyN_cmd,    $sampleTumorOutput,
+			#	"10G",          $jumpyN_stdout,
+			#	$jumpyN_stderr, "1",
+			#	$runQueue,      $jumpyN_jname,
+			#	"Null"
+			#);
+			&launchQsub(
+						 $notify_cmd,     $outdir,
+						 "2G",            $notifyT_stdout,
+						 $notifyT_stderr, "1",
+						 $runQueue,       $notifyT_jname,
+						 $notifyT_hjname
+			);
+		} else
+		{
+			&launchBsub(
+						 $dellyT_cmd,    $sampleTumorOutput,
+						 "8G",           $dellyT_stdout,
+						 $dellyT_stderr, "2",
+						 $runQueue,      $dellyT_jname,
+						 "Null"
+			);
+			&launchBsub(
+						 $duppyT_cmd,    $sampleTumorOutput,
+						 "8G",           $duppyT_stdout,
+						 $duppyT_stderr, "2",
+						 $runQueue,      $duppyT_jname,
+						 "Null"
+			);
+			&launchBsub(
+						 $invyT_cmd,    $sampleTumorOutput,
+						 "8G",          $invyT_stdout,
+						 $invyT_stderr, "2",
+						 $runQueue,     $invyT_jname,
+						 "Null"
+			);
+			&launchBsub(
+						 $jumpyT_cmd,    $sampleTumorOutput,
+						 "8G",           $jumpyT_stdout,
+						 $jumpyT_stderr, "2",
+						 $runQueue,      $jumpyT_jname,
+						 "Null"
+			);
+
+			#&launchQsub(
+			#	$jumpyN_cmd,    $sampleTumorOutput,
+			#	"10G",          $jumpyN_stdout,
+			#	$jumpyN_stderr, "1",
+			#	$runQueue,      $jumpyN_jname,
+			#	"Null"
+			#);
+			&launchBsub(
+						 $notify_cmd,     $outdir,
+						 "2G",            $notifyT_stdout,
+						 $notifyT_stderr, "1",
+						 $runQueue,       $notifyT_jname,
+						 $notifyT_hjname
+			);
+		}
 		push( @waitFilenames, $notifyT_stdout );
 	} else
 	{
@@ -2415,6 +2687,50 @@ sub launchQsub
 		if ($@)
 		{
 			print "Problem Sumitting the Qusb Command.Error: $@\n";
+			exit(1);
+		}
+	}
+	return;
+}
+#######################################
+#######################################
+#Run the the cmd as bsub
+sub launchBsub
+{
+	my (
+		 $cmd,        $outdir, $mem,     $stdout, $stderr,
+		 $processors, $queue,  $jobname, $holdjobname
+	) = @_;
+	my $bcmd = "";
+
+	#Run Job with hold job id
+	if ( $holdjobname ne "Null" )
+	{
+		$bcmd =
+"$BSUB -q $queue -cwd $outdir -w \"done($holdjobname)\" -J $jobname -o $stdout -e $stderr -We 24:00 -R \"rusage[mem=$mem]\" -M $mem+5 -n $processors \"$cmd\"";
+		eval {
+			print "CMD:$bcmd\n";
+			`$bcmd`;
+		};
+		if ($@)
+		{
+			print "Problem Sumitting the Busb Command.Error: $@\n";
+			exit(1);
+		}
+	}
+
+	#Run Jobs without hold job Id
+	if ( $holdjobname eq "Null" )
+	{
+		$bcmd =
+"$BSUB -q $queue -cwd $outdir -J $jobname -o $stdout -e $stderr -R \"rusage[mem=$mem]\" -M $mem+5 -n $processors \"$cmd\"";
+		eval {
+			print "CMD:$bcmd\n";
+			`$bcmd`;
+		};
+		if ($@)
+		{
+			print "Problem Sumitting the Busb Command.Error: $@\n";
 			exit(1);
 		}
 	}
@@ -2747,7 +3063,8 @@ sub MergeVCFwithdRanger
 			my $dRangeValue = $dRangerData{$key};
 
 			#print "Key=>$key\tVCF=>$vcfValue\tDranger=>$dRangeValue\n";
-			my ( $chr1, $pos1, $sstr1, $chr2, $pos2, $sstr2 ) = split( ":", $key );
+			my ( $chr1, $pos1, $sstr1, $chr2, $pos2, $sstr2 ) =
+			  split( ":", $key );
 			my (
 				 $str1,  $str2,        $gene1,
 				 $gene2, $transcript1, $transcript2,
@@ -2876,7 +3193,6 @@ sub Read_VCFout
 		#Get the Header
 		if ( $_ =~ m/^#/ )
 		{
-
 			#Get what is tumor what is normal
 			if ( $_ =~ m/^#CHROM/ )
 			{
@@ -2911,7 +3227,6 @@ sub Read_VCFout
 			}
 		} else
 		{
-
 			#Get All the Lines
 			my (@line) = split( "\t", $_ );
 
@@ -2966,6 +3281,7 @@ sub Read_VCFout
 			$consensusSeq   = $infoData{"CONSENSUS"}
 			  if exists $infoData{"CONSENSUS"};
 			if ( !$svChr2 ) { $svChr2 = $svChr }
+
 			#Get Connection Info
 			my ( $startCT, $endCT ) = split( "to", $connectionType );
 			$str1 = "0" if ( $startCT == 3 );
