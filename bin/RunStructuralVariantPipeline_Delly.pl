@@ -883,7 +883,7 @@ sub GetConfiguration
 		$dRANGER            = $location{"dRANGER"};
 		$HG19MAT            = $location{"HG19MAT"};
 		$MCR                = $location{"MCR"};
-		$queue              = $parameters{"SGE_QUEUE"};
+		$queue              = $parameters{"QUEUE_NAME"};
 		$fastqSource        = $parameters{"fastqSource"};
 		$sampleFile         = $parameters{"SampleFile"};
 		$titleFile          = $parameters{"TitleFile"};
