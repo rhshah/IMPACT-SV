@@ -2,7 +2,7 @@
 ##########StructuralVaraintFinder.pl########
 #Author: Ronak Shah
 #Date: 07/01/2013
-#LastModified: 05/21/2015
+#LastModified: 09/04/2015
 #Version: 2.0
 #Description: Get In the data and run the mapping and structural variant finding
 #process.
@@ -13,6 +13,8 @@
 ##05/21/2015
 #v2.0
 #Added Support for germline title file
+#v3.0
+#Added Support for LSF
 use strict;
 use Getopt::Long;
 use IO::File;
@@ -22,129 +24,125 @@ use Vcf;
 use File::Basename;
 use FindBin::Real qw(Bin);
 my (
-	 $sampleFile,
-	 $stdNormal,
-	 $titleFile,
-	 $fof,
-	 $poolName,
-	 $projectName,
-	 $process,
-	 $datadir,
-	 $outdir,
-	 $mvFiles,
-	 $bwa,
-	 $baitIntervalFile,
-	 $targetIntervalFile,
-	 $targetIntervalBedFile,
-	 $refFile,
-	 $TMPDIR,
-	 $PICARD,
-	 $JAVA,
-	 $samtools,
-	 $fastqSource,
-	 $config_file,
-	 $GATK,
-	 $PYTHON,
-	 $PYTHONPATH,
-	 $prog,
-	 $RefGeneFile,
-	 $RepeatRegionFile,
-	 $CancerCensusFile,
-	 $queue,
-	 $PERL,
-	 $DELLY,
-	 $QSUB,
-	 $standardNormalList,
-	 $MAPQ,
-	 $BASEQ,
-	 $barcodeFile,
-	 $adaptorFile,
-	 $TrimGalore,
-	 $nprocessors,
-	 $ZCAT,
-	 $GZIP,
-	 $FilterSV,
-	 $AnnotateSV,
-	 $DGvFile,
-	 $OverallSupportingReads,
-	 $OverallSupportingReadsHotspot,
-	 $SampleTumorSupportingReads,
-	 $SampleTumorSupportingReadsHotspot,
-	 $SampleNormalSupportingReads,
-	 $SampleNormalSupportingReadsHotspot,
-	 $OverallSupportingSplitReads,
-	 $OverallSupportingSplitReadsHotspot,
-	 $LengthOfSV,
-	 $OverallMapq,
-	 $OverallMapqHotspot,
-	 $SampleTumorGenotypeQualityFilter,
-	 $SampleTumorGenotypeQualityFilterHotspot,
-	 $SampleNormalGenotypeQualityFilter,
-	 $SampleNormalGenotypeQualityFilterHotspot,
-	 $ExcludeRegions,
-	 $HotspotFile,
-	 $DistanceBtwTumorNormalCTX,
-	 $dRANGER,
-	 $HG19MAT,
-	 $MCR,
-	 $removeSymLinksFlag,
-	 $type,
-	 $BSUB,
-	 $CLUSTER
+	$sampleFile,
+	$stdNormal,
+	$titleFile,
+	$fof,
+	$poolName,
+	$projectName,
+	$process,
+	$datadir,
+	$outdir,
+	$mvFiles,
+	$bwa,
+	$baitIntervalFile,
+	$targetIntervalFile,
+	$targetIntervalBedFile,
+	$refFile,
+	$TMPDIR,
+	$PICARD,
+	$JAVA,
+	$samtools,
+	$fastqSource,
+	$config_file,
+	$GATK,
+	$PYTHON,
+	$PYTHONPATH,
+	$prog,
+	$RefGeneFile,
+	$RepeatRegionFile,
+	$CancerCensusFile,
+	$queue,
+	$PERL,
+	$DELLY,
+	$QSUB,
+	$standardNormalList,
+	$MAPQ,
+	$BASEQ,
+	$barcodeFile,
+	$adaptorFile,
+	$TrimGalore,
+	$nprocessors,
+	$ZCAT,
+	$GZIP,
+	$FilterSV,
+	$AnnotateSV,
+	$DGvFile,
+	$OverallSupportingReads,
+	$OverallSupportingReadsHotspot,
+	$SampleTumorSupportingReads,
+	$SampleTumorSupportingReadsHotspot,
+	$SampleNormalSupportingReads,
+	$SampleNormalSupportingReadsHotspot,
+	$OverallSupportingSplitReads,
+	$OverallSupportingSplitReadsHotspot,
+	$LengthOfSV,
+	$OverallMapq,
+	$OverallMapqHotspot,
+	$SampleTumorGenotypeQualityFilter,
+	$SampleTumorGenotypeQualityFilterHotspot,
+	$SampleNormalGenotypeQualityFilter,
+	$SampleNormalGenotypeQualityFilterHotspot,
+	$ExcludeRegions,
+	$HotspotFile,
+	$DistanceBtwTumorNormalCTX,
+	$dRANGER,
+	$HG19MAT,
+	$MCR,
+	$removeSymLinksFlag,
+	$type,
+	$BSUB,
+	$CLUSTER
 );
 
 #--This variable holds the current time
 my $now = time;
 if (
-	 @ARGV < 1
-	 or !GetOptions(
-					 'config|c:s'          => \$config_file,
-					 'dataDirectory|d:s'   => \$datadir,
-					 'symLinkFlag|sf:i'    => \$removeSymLinksFlag,
-					 'outputDirectory|o:s' => \$outdir,
-					 'type|t:s'            => \$type
-	 )
+	@ARGV < 1
+	or !GetOptions(
+		'config|c:s'          => \$config_file,
+		'dataDirectory|d:s'   => \$datadir,
+		'symLinkFlag|sf:i'    => \$removeSymLinksFlag,
+		'outputDirectory|o:s' => \$outdir,
+		'type|t:s'            => \$type
+	)
   )
 {
 	Usage();
 }
-if ($config_file)
-{
+if ($config_file) {
 	print "The configration file in use is $config_file.\n";
-} else
-{
+}
+else {
 	print "Please enter the configuration file.See Usage\n";
 	Usage();
 	exit;
 }
-if ( !$outdir )
-{
+if ( !$outdir ) {
 	print
 "Please enter the directory where to write the data while/after being processed.See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "Results will be written in $outdir\n";
 }
-if ($removeSymLinksFlag)
-{
-	if ( $removeSymLinksFlag == 1 )
-	{
+if ($removeSymLinksFlag) {
+	if ( $removeSymLinksFlag == 1 ) {
 		print "SYMLINKS:The symLinks will be removed\n";
-	} else
-	{
+	}
+	else {
 		print "SYMLINKS:The symLinks will be not be removed\n";
 	}
-} else
-{
+}
+else {
 	$removeSymLinksFlag = 2;
 	print "SYMLINKS:The symLinks will not be removed\n";
 }
 
 # This is variable is the path to the bin folder
-my $binPath    = Bin();
-my ($root)     = $binPath =~ /(.*\/).*/;    #get the path above bin
+my $binPath = Bin();
+my ($root) = $binPath =~ /(.*\/).*/;    #get the path above bin
 my ($revision) = `svnversion $root`;
 $revision =~ s/\s//g;
 my $configurationPath = $root . "configuration/";   #path to configuration Files
@@ -157,477 +155,428 @@ open( VERSION, ">", "$outdir/$PrintConfigFile" )
 
 #Prin Version of tools and Files used
 print VERSION "Tools|Files\tVersion\n";
-while ( my ( $tools_files, $version ) = each(%$Version) )
-{
+while ( my ( $tools_files, $version ) = each(%$Version) ) {
 	print VERSION "$tools_files\t$version\n";
 }
 close(VERSION);
-if ( !$sampleFile )
-{
+if ( !$sampleFile ) {
 	print
 "Sample sheet is not given in the configuration file. Looking into the raw data directory.\n";
 	$sampleFile = `ls $datadir/SampleSheet.csv`;
 	chomp($sampleFile);
-	if ( !$sampleFile )
-	{
+	if ( !$sampleFile ) {
 		print
 "Sample sheet could not be located in the raw data directory, pipeline requires a sample sheet to run. Please see usage.\n";
 		Usage();
 		exit(1);
 	}
 }
-if ( !$titleFile )
-{
+if ( !$titleFile ) {
 	print
 "Title file is not given in the configuration file. Looking into the raw data directory.\n";
 	$titleFile = `ls $datadir/title_file.txt`;
 	chomp($titleFile);
-	if ( !$titleFile )
-	{
+	if ( !$titleFile ) {
 		print
 "Somatic title file could not be located in the raw data directory, pipeline requires the title file to run. Please see usage.\n";
 		Usage();
 		exit(1);
 	}
 }
-if ($type)
-{
-	if ( $type eq "germline" )
-	{
+if ($type) {
+	if ( $type eq "germline" ) {
 		print "Looking into the raw data directory for germline title file\n";
 		$titleFile = `ls $datadir/title_file.nvn.txt`;
 		chomp($titleFile);
-		if ( !$titleFile )
-		{
+		if ( !$titleFile ) {
 			print
 "Germline title file could not be located in the raw data directory, pipeline requires the title file to run. Please see usage.\n";
 			Usage();
 			exit(1);
 		}
 	}
-} else
-{
+}
+else {
 	$type = "somatic";
 }
 
 #Read Sample File
 my (
-	 $fcId,        $lane,    $sampleId, $sampleRef, $index,
-	 $description, $control, $recipe,   $operator,  $sampleProject
+	$fcId,        $lane,    $sampleId, $sampleRef, $index,
+	$description, $control, $recipe,   $operator,  $sampleProject
 ) = &ReadSampleFile( $sampleFile, $projectName, $outdir );
 
 #Read Title File
 my (
-	 $barcode,      $pool,      $titleSampleId, $collabId,
-	 $patientId,    $class,     $sampleType,    $inputNg,
-	 $libraryYeild, $poolInput, $baitVersion
+	$barcode,      $pool,      $titleSampleId, $collabId,
+	$patientId,    $class,     $sampleType,    $inputNg,
+	$libraryYeild, $poolInput, $baitVersion
 ) = &ReadTitleFile( $titleFile, $outdir );
 
 #Check for Project Name
-if ( !$projectName )
-{
+if ( !$projectName ) {
 	print
 "Project name is not given in the configuration file, pipeline will use the project name stated in the SampleSheet.csv file.\n";
 	$projectName = @$sampleProject[0];
-	if ( !$projectName )
-	{
+	if ( !$projectName ) {
 		print "Can not read project name from the sample sheet.\n";
 		exit(1);
 	}
 }
 
 #Check for Pool Name
-if ( !$poolName )
-{
+if ( !$poolName ) {
 	print
 "Pool name is not given in the configuration file, pipeline will use the pool name stated in the title file.\n";
 	$poolName = @$pool[0];
-	if ( !$poolName )
-	{
+	if ( !$poolName ) {
 		print "Can not read pool name from the title file.\n";
 		exit(1);
 	}
 }
-if ( !$mvFiles )
-{
+if ( !$mvFiles ) {
 	print "Folders will be created and Files will be moved.\n";
 	$mvFiles = 1;
-} else
-{
-	if ( $mvFiles == 1 )
-	{
+}
+else {
+	if ( $mvFiles == 1 ) {
 		print "Folders will be created and Files will be moved.\n";
 	}
-	if ( $mvFiles == 2 )
-	{
+	if ( $mvFiles == 2 ) {
 		print "Folders will not be created and Files will not be moved.\n";
 	}
 }
-if ( !$stdNormal )
-{
+if ( !$stdNormal ) {
 	$stdNormal = "NULL";
-} else
-{
+}
+else {
 	print "Starndard Normal is given: $stdNormal\n";
 }
-if ( !$fastqSource )
-{
+if ( !$fastqSource ) {
 	print "Assume fastq files came from GCL.\n";
 	$fastqSource = "GCL";
-} else
-{
-	if ( $fastqSource ne "GCL" && $fastqSource ne "DMP" )
-	{
+}
+else {
+	if ( $fastqSource ne "GCL" && $fastqSource ne "DMP" ) {
 		print "Please indicate fastqSource. See Usage\n";
 		Usage();
 		exit;
 	}
 }
-if ($barcodeFile)
-{
+if ($barcodeFile) {
 	print "The barcode file in use is $barcodeFile.\n";
-} else
-{
+}
+else {
 	print "Please enter the barcode file.See Usage\n";
 	Usage();
 	exit;
 }
-if ($adaptorFile)
-{
+if ($adaptorFile) {
 	print "The barcode file in use is $adaptorFile.\n";
-} else
-{
+}
+else {
 	print "Please enter the adaptor file.See Usage\n";
 	Usage();
 	exit;
 }
-if ( !$TMPDIR )
-{
+if ( !$TMPDIR ) {
 	print "Path to temporary directory is not given. See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "TMPDIR=$TMPDIR\n";
 }
-if ( !$PICARD )
-{
+if ( !$PICARD ) {
 	print "Path to samtools executables is not given.See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "SAMTOOLS=$samtools\n";
 }
-if ( !$PICARD )
-{
+if ( !$PICARD ) {
 	print "Path to Picard's executables is not given, See Usage.\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "PICARD=$PICARD\n";
 }
-if ( !$bwa )
-{
+if ( !$bwa ) {
 	print "Path to BWA MEM executables is not given. See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "BWA=$bwa\n";
 }
-if ( !$baitIntervalFile )
-{
+if ( !$baitIntervalFile ) {
 	print "Bait Interval file is not given. See Usage.\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "BAIT_INTERVAL=$baitIntervalFile\n";
 }
-if ( !$targetIntervalFile )
-{
+if ( !$targetIntervalFile ) {
 	print "Target Interval file is not given. See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "Target_INTERVAL=$targetIntervalFile\n";
 }
-if ( !$refFile )
-{
+if ( !$refFile ) {
 	print "Reference Sequence file is not given. See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "Reference_Sequence=$refFile\n";
 }
-if ( !$ExcludeRegions )
-{
+if ( !$ExcludeRegions ) {
 	print "ExcludeRegions file is not given. See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "ExcludeRegions=$ExcludeRegions\n";
 }
-if ( !$HotspotFile )
-{
+if ( !$HotspotFile ) {
 	print "Hotspot location BED4 file is not given. See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "HotspotFile=$HotspotFile\n";
 }
-if ( !$JAVA )
-{
+if ( !$JAVA ) {
 	print "Path to java executables is not given. See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "JAVA=$JAVA\n";
 }
 
-if ($CLUSTER)
-{
+if ($CLUSTER) {
 	print "The CLUSTER in use is $CLUSTER.\n";
-} else
-{
+}
+else {
 	print "Please enter the Cluster type.See Usage\n";
 	Usage();
 	exit;
 }
+
 #Check if path to FilterSV script is given
-if ( !$FilterSV )
-{
+if ( !$FilterSV ) {
 	$FilterSV = $binPath . "/FilterSV.pl";
 	print
 	  "FilterSV.pl script path is not given, default location will be used.\n";
-} else
-{
+}
+else {
 	print "Filter SV script location: $FilterSV.\n";
 }
 
 #Check if path to FilterSV script is given
-if ( !$AnnotateSV )
-{
+if ( !$AnnotateSV ) {
 	$AnnotateSV = $binPath . "/AnnotateSVs.py";
 	print
 "AnnotateSVs.py script path is not given, default location will be used.\n";
-} else
-{
+}
+else {
 	print "Annotate SV script location: $AnnotateSV.\n";
 }
-if ( !$DELLY )
-{
+if ( !$DELLY ) {
 	print "Path to Delly is not given. See Usage\n";
 	Usage();
 	exit;
-} else
-{
+}
+else {
 	print "Delly=$DELLY\n";
 }
 
 #overallSupportingReadsPE
-if ( !$OverallSupportingReads )
-{
+if ( !$OverallSupportingReads ) {
 	print "OverallSupportingReads not given default will be used.\n";
 	$OverallSupportingReads = 5;
 	print "OverallSupportingReads:$OverallSupportingReads\n";
-} else
-{
+}
+else {
 	print "OverallSupportingReadsPE:$OverallSupportingReads.\n";
 }
 
 #sampleTumorSupportingReadsPE
-if ( !$SampleTumorSupportingReads )
-{
+if ( !$SampleTumorSupportingReads ) {
 	print "SampleTumorSupportingReadsPE not given default will be used.\n";
 	$SampleTumorSupportingReads = 2;
 	print "SampleTumorSupportingReadsPE:$SampleTumorSupportingReads\n";
-} else
-{
+}
+else {
 	print "SampleTumorSupportingReadsPE:$SampleTumorSupportingReads.\n";
 }
 
 #sampleTumorSupportingReadsPE_Hotspot
-if ( !$SampleTumorSupportingReadsHotspot )
-{
+if ( !$SampleTumorSupportingReadsHotspot ) {
 	print "SampleTumorSupportingReadsHotspot not given default will be used.\n";
 	$SampleTumorSupportingReadsHotspot = 1;
 	print
 	  "SampleTumorSupportingReadsHotspot:$SampleTumorSupportingReadsHotspot\n";
-} else
-{
+}
+else {
 	print
 	  "SampleTumorSupportingReadsHotspot:$SampleTumorSupportingReadsHotspot.\n";
 }
 
 #sampleNormalSupportingReadsPE
-if ( !$SampleNormalSupportingReads )
-{
+if ( !$SampleNormalSupportingReads ) {
 	print "SampleNormalSupportingReadsPE not given default will be used.\n";
 	$SampleNormalSupportingReads = 2;
 	print "SampleNormalSupportingReadsPE:$SampleNormalSupportingReads\n";
-} else
-{
+}
+else {
 	print "SampleNormalSupportingReadsPE:$SampleNormalSupportingReads.\n";
 }
 
 #sampleNormalSupportingReadsPE_Hotspot
-if ( !$SampleNormalSupportingReadsHotspot )
-{
+if ( !$SampleNormalSupportingReadsHotspot ) {
 	print
 	  "SampleNormalSupportingReadsHotspot not given default will be used.\n";
 	$SampleNormalSupportingReadsHotspot = 3;
 	print
 "SampleNormalSupportingReadsHotspot:$SampleNormalSupportingReadsHotspot\n";
-} else
-{
+}
+else {
 	print
 "SampleNormalSupportingReadsHotspot:$SampleNormalSupportingReadsHotspot.\n";
 }
 
 #overallSupportingReadsSR
-if ( !$OverallSupportingSplitReads )
-{
+if ( !$OverallSupportingSplitReads ) {
 	print "OverallSupportingSplitReads not given default will be used.\n";
 	$OverallSupportingSplitReads = 0;
 	print "OverallSupportingReadsSR:$OverallSupportingSplitReads\n";
-} else
-{
+}
+else {
 	print "OverallSupportingReadsSR:$OverallSupportingSplitReads.\n";
 }
 
 #overallSupportingReadsPE_Hotspot
-if ( !$OverallSupportingReadsHotspot )
-{
+if ( !$OverallSupportingReadsHotspot ) {
 	print "OverallSupportingReadsHotspot not given default will be used.\n";
 	$OverallSupportingReadsHotspot = 3;
 	print "OverallSupportingReadsPE_Hotspot:$OverallSupportingReadsHotspot\n";
-} else
-{
+}
+else {
 	print "OverallSupportingReadsPE_Hotspot:$OverallSupportingReadsHotspot.\n";
 }
 
 #overallSupportingReadsSR_Hotspot
-if ( !$OverallSupportingSplitReadsHotspot )
-{
+if ( !$OverallSupportingSplitReadsHotspot ) {
 	print
 	  "OverallSupportingSplitReadsHotspot not given default will be used.\n";
 	$OverallSupportingSplitReadsHotspot = 0;
 	print
 "OverallSupportingSplitReadsHotspott:$OverallSupportingSplitReadsHotspot\n";
-} else
-{
+}
+else {
 	print
 "OverallSupportingSplitReadsHotspot:$OverallSupportingSplitReadsHotspot.\n";
 }
 
 #lengthOfSV
-if ( !$LengthOfSV )
-{
+if ( !$LengthOfSV ) {
 	print "LengthOfSV not given default will be used.\n";
 	$LengthOfSV = 300;
 	print "LengthOfSV:$LengthOfSV\n";
-} else
-{
+}
+else {
 	print "LengthOfSV:$LengthOfSV.\n";
 }
 
 #overallMAPQ
-if ( !$OverallMapq )
-{
+if ( !$OverallMapq ) {
 	print "OverallMapq not given default will be used.\n";
 	$OverallMapq = 10;
 	print "OverallMapq:$OverallMapq\n";
-} else
-{
+}
+else {
 	print "OverallMapq:$OverallMapq.\n";
 }
 
 #overallMAPQ_Hotspot
-if ( !$OverallMapqHotspot )
-{
+if ( !$OverallMapqHotspot ) {
 	print "OverallMapqHotspot not given default will be used.\n";
 	$OverallMapqHotspot = 5;
 	print "OverallMapqHotspot:$OverallMapqHotspot\n";
-} else
-{
+}
+else {
 	print "OverallMapqHotspot:$OverallMapqHotspot.\n";
 }
 
 #sampleTumorGenotypeQualityFilter
-if ( !$SampleTumorGenotypeQualityFilter )
-{
+if ( !$SampleTumorGenotypeQualityFilter ) {
 	print "SampleTumorGenotypeQualityFilter not given default will be used.\n";
 	$SampleTumorGenotypeQualityFilter = 15;
 	print
 	  "SampleTumorGenotypeQualityFilter = $SampleTumorGenotypeQualityFilter\n";
-} else
-{
+}
+else {
 	print
 	  "SampleTumorGenotypeQualityFilter = $SampleTumorGenotypeQualityFilter\n";
 }
 
 #sampleTumorGenotypeQualityFilterHotspot
-if ( !$SampleTumorGenotypeQualityFilterHotspot )
-{
+if ( !$SampleTumorGenotypeQualityFilterHotspot ) {
 	print
 "SampleTumorGenotypeQualityFilterHotspot not given default will be used.\n";
 	$SampleTumorGenotypeQualityFilterHotspot = 5;
 	print
 "SampleTumorGenotypeQualityFilterHotspot = $SampleTumorGenotypeQualityFilterHotspot\n";
-} else
-{
+}
+else {
 	print
 "SampleTumorGenotypeQualityFilterHotspot = $SampleTumorGenotypeQualityFilterHotspot\n";
 }
 
 #sampleNormalGenotypeQualityFilter
-if ( !$SampleNormalGenotypeQualityFilter )
-{
+if ( !$SampleNormalGenotypeQualityFilter ) {
 	print "SampleNormalGenotypeQualityFilter not given default will be used.\n";
 	$SampleNormalGenotypeQualityFilter = 15;
 	print
 "SampleNormalGenotypeQualityFilter = $SampleNormalGenotypeQualityFilter\n";
-} else
-{
+}
+else {
 	print
 "SampleNormalGenotypeQualityFilter = $SampleNormalGenotypeQualityFilter\n";
 }
 
 #sampleGenotypeQualityFilterHotspot
-if ( !$SampleNormalGenotypeQualityFilterHotspot )
-{
+if ( !$SampleNormalGenotypeQualityFilterHotspot ) {
 	print
 "SampleNormalGenotypeQualityFilterHotspot not given default will be used.\n";
 	$SampleNormalGenotypeQualityFilterHotspot = 20;
 	print
 "SampleNormalGenotypeQualityFilterHotspot = $SampleNormalGenotypeQualityFilterHotspot\n";
-} else
-{
+}
+else {
 	print
 "SampleNormalGenotypeQualityFilterHotspot = $SampleNormalGenotypeQualityFilterHotspot\n";
 }
 
 #DistanceBtwTumorNormalCTX
-if ( !$DistanceBtwTumorNormalCTX )
-{
+if ( !$DistanceBtwTumorNormalCTX ) {
 	print "DistanceBtwTumorNormalCTX not given default will be used.\n";
 	$DistanceBtwTumorNormalCTX = 5;
 	print "DistanceBtwTumorNormalCTX = $DistanceBtwTumorNormalCTX\n";
-} else
-{
+}
+else {
 	print "SDistanceBtwTumorNormalCTX = $DistanceBtwTumorNormalCTX\n";
 }
 tie( my %classPerBarcode, 'Tie::IxHash' );
-for ( my $i = 0 ; $i < scalar(@$barcode) ; $i++ )
-{
+for ( my $i = 0 ; $i < scalar(@$barcode) ; $i++ ) {
+
 	#print "$$barcode[$i] => $$class[$i]\n";
 	$classPerBarcode{ $$barcode[$i] . "_" . $$titleSampleId[$i] } = $$class[$i];
 }
@@ -639,17 +588,16 @@ for ( my $i = 0 ; $i < scalar(@$barcode) ; $i++ )
 my @allProcess = split( ",", $process );
 
 #Check for raw data directory
-if ( $allProcess[0] == 1 && !$datadir )
-{
+if ( $allProcess[0] == 1 && !$datadir ) {
 	print
 "Please enter the directory that contains the data to be processed.See Usage\n";
 	Usage();
 	exit(1);
-} elsif ( $allProcess[0] == 1 && $datadir )
-{
+}
+elsif ( $allProcess[0] == 1 && $datadir ) {
 	print "The raw data directory given is $datadir\n";
-} else
-{
+}
+else {
 	print
 "Process 1 is not selected so I am not checking to see if the raw data directory is given or not.\n";
 }
@@ -657,8 +605,8 @@ my $allProcessList  = join( ",", @allProcess );
 my $numberOfProcess = scalar(@allProcess);
 my $processCount    = 0;
 my $parseFilenames;
-while ( $processCount < $numberOfProcess )
-{
+while ( $processCount < $numberOfProcess ) {
+
 	#print "@allProcess\n";
 	my $runProcess = shift(@allProcess);
 
@@ -666,10 +614,8 @@ while ( $processCount < $numberOfProcess )
 	($parseFilenames) = &Select( $runProcess, $parseFilenames );
 	$processCount++;
 }
-if ($fof)
-{
-	if ( $removeSymLinksFlag == 1 )
-	{
+if ($fof) {
+	if ( $removeSymLinksFlag == 1 ) {
 		print "Removing Softlinked files form $outdir\n";
 		my @softlinks = ();
 		eval {
@@ -677,8 +623,7 @@ if ($fof)
 			  `find $outdir -maxdepth 1 -type l -print0 | xargs -0 ls -d`;
 		};
 		if ($@) { print "Cannot find all softlinks in $outdir. Error:$@\n"; }
-		foreach my $sfLink (@softlinks)
-		{
+		foreach my $sfLink (@softlinks) {
 			eval { `unlink $sfLink`; };
 			if ($@) { print "Cannot unlink $sfLink. Error:$@\n"; }
 		}
@@ -689,41 +634,42 @@ if ($fof)
 $now = time - $now;
 
 #--Print runtime
-printf( "\n\nTotal running time: %02d:%02d:%02d\n\n",
-		int( $now / 3600 ),
-		int( ( $now % 3600 ) / 60 ),
-		int( $now % 60 ) );
+printf(
+	"\n\nTotal running time: %02d:%02d:%02d\n\n",
+	int( $now / 3600 ),
+	int( ( $now % 3600 ) / 60 ),
+	int( $now % 60 )
+);
 print "\n!!!!Done, Thanks for using the script!!!\n";
 exit;
 #####################################
 #####################################
 #Run only single process at a time.
-sub Select
-{
+sub Select {
 	my ( $process, $parseFilenames ) = @_;
 	my $SVoutput;
-	if ( $process == 1 )
-	{
+	if ( $process == 1 ) {
 		$parseFilenames = &MergeDataFromDirectory();
-	} elsif ( $process == 2 )
-	{
+	}
+	elsif ( $process == 2 ) {
 		$parseFilenames = &DoMapping($parseFilenames);
-	} elsif ( $process == 3 )
-	{
+	}
+	elsif ( $process == 3 ) {
 		$parseFilenames = &CalcHsMetrics($parseFilenames);
-	} elsif ( $process == 4 )
-	{
+	}
+	elsif ( $process == 4 ) {
 		$parseFilenames = &CallStructuralVariants($parseFilenames);
-	} elsif ( $process == 5 )
-	{
+	}
+	elsif ( $process == 5 ) {
 		$parseFilenames = &FilterStructuralVariants($parseFilenames);
-	} elsif ( $process == 6 )
-	{
+	}
+	elsif ( $process == 6 ) {
 		( $parseFilenames, $SVoutput ) =
 		  &AnnotateStructuralVariants($parseFilenames);
-	} elsif (    ( $process eq "all" )
-			  or ( $process eq "ALL" )
-			  or ( $process eq "All" ) )
+	}
+	elsif (( $process eq "all" )
+		or ( $process eq "ALL" )
+		or ( $process eq "All" ) )
 	{
 		$parseFilenames = &MergeDataFromDirectory();
 		$parseFilenames = &DoMapping($parseFilenames);
@@ -731,8 +677,8 @@ sub Select
 		$parseFilenames = &CallStructuralVariants($parseFilenames);
 		$parseFilenames = &FilterStructuralVariants($parseFilenames);
 		$parseFilenames = &AnnotateStructuralVariants($parseFilenames);
-	} else
-	{
+	}
+	else {
 		print
 "Select:The process number entered ($process) does not exist, See Usage.\n";
 		exit(1);
@@ -742,8 +688,7 @@ sub Select
 #####################################
 #####################################
 #How to use the script.
-sub Usage
-{
+sub Usage {
 	print "Unknow option: @_\n" if (@_);
 	print "\nUsage : StructuralVariantFinder.pl [options]
         [--config|c                        S Path to configration file(required;Template:/home/shahr2/Scripts/All/StrVarConfig_(script_version)_(bait_version.txt)]
@@ -789,8 +734,7 @@ sub Usage
 ###################################################
 ###################################################
 #--GET CONFIGRATION DETAIL
-sub GetConfiguration
-{
+sub GetConfiguration {
 	my ($config_file) = @_;
 	my @data = ();
 	tie( my %config,     'Tie::IxHash' );
@@ -804,15 +748,12 @@ sub GetConfiguration
 	open( CONFIG, "$config_file" )
 	  or die "Cannot open $config_file. Error: $!\n";
 	my $junk = <CONFIG>;
-	while (<CONFIG>)
-	{
+	while (<CONFIG>) {
 		next if ( $_ =~ /^#/ );
 		chomp($_);
 		my ( $defLine, @configLines ) = split /\n/, $_;
-		if ( $defLine =~ /Locations/ )
-		{
-			foreach my $config (@configLines)
-			{
+		if ( $defLine =~ /Locations/ ) {
+			foreach my $config (@configLines) {
 				next if ( $config =~ /^#/ );
 				@data = split( "=", $config, 2 );
 				$data[0] =~ s/\s//g;
@@ -820,10 +761,8 @@ sub GetConfiguration
 				$location{ $data[0] } = $data[1];
 			}
 		}
-		if ( $defLine =~ /Parameters/ )
-		{
-			foreach my $config (@configLines)
-			{
+		if ( $defLine =~ /Parameters/ ) {
+			foreach my $config (@configLines) {
 				next if ( $config =~ /^#/ );
 				@data = split( "=", $config, 2 );
 				$data[0] =~ s/\s//g;
@@ -831,10 +770,8 @@ sub GetConfiguration
 				$parameters{ $data[0] } = $data[1];
 			}
 		}
-		if ( $defLine =~ /Versions/ )
-		{
-			foreach my $config (@configLines)
-			{
+		if ( $defLine =~ /Versions/ ) {
+			foreach my $config (@configLines) {
 				next if ( $config =~ /^#/ );
 				@data = split( "=", $config, 2 );
 				$data[0] =~ s/\s//g;
@@ -928,8 +865,7 @@ sub GetConfiguration
 		$SampleNormalGenotypeQualityFilterHotspot =
 		  $parameters{"SampleNormalGenotypeQualityFilterHotspot"};
 	};
-	if ($@)
-	{
+	if ($@) {
 		print "Did not find a variable in configuration file.Error: $@\n";
 		exit(1);
 	}
@@ -938,20 +874,18 @@ sub GetConfiguration
 ###################################################
 ###################################################
 #--Make Notification file
-sub MakeCSH
-{
+sub MakeCSH {
 	my ($outdir) = @_;
 	my $filename = $outdir . "/Notify.csh";
-	if ( !-e $filename )
-	{
+	if ( !-e $filename ) {
 		my $ntmp = new IO::File(">$filename");
 		print $ntmp "#!/bin/csh\n";
 		print $ntmp "#Notification File\n";
 		print $ntmp "echo", " This is Done", "\n";
 		$ntmp->close();
 		`chmod +x $filename`;
-	} else
-	{
+	}
+	else {
 		print "$filename exists and wont be created.\n";
 	}
 	return;
@@ -959,28 +893,25 @@ sub MakeCSH
 ###################################################
 ###################################################
 #--Waiting for the process to finish
-sub WaitToFinish
-{
+sub WaitToFinish {
 	my ( $outdir, @waitfilenames ) = @_;
 	print "Waiting for the Process to finish...\n";
-	foreach my $wfile (@waitfilenames)
-	{
+	foreach my $wfile (@waitfilenames) {
 		next if ( $wfile eq "NULL" );
 		wait while ( !-e "$outdir/$wfile" );
 
 		#print "$outdir/$wfile\n";
-		while ( -e "$outdir/$wfile" )
-		{
+		while ( -e "$outdir/$wfile" ) {
+
 			#print "$outdir/$wfile\n";
 			open( FH, "<", "$outdir/$wfile" );
-			while (<FH>)
-			{
-				if ( $_ =~ /This is Done/ig )
-				{
+			while (<FH>) {
+				if ( $_ =~ /This is Done/ig ) {
+
 					#print "\nFinished: $wfile\n";
 					last;
-				} else
-				{
+				}
+				else {
 					wait;
 				}
 			}
@@ -988,8 +919,7 @@ sub WaitToFinish
 		}
 		close(FH);
 	}
-	foreach my $wfile (@waitfilenames)
-	{
+	foreach my $wfile (@waitfilenames) {
 		next if ( $wfile eq "NULL" );
 		`rm $outdir/$wfile`;
 	}
@@ -998,14 +928,12 @@ sub WaitToFinish
 ###################################################
 ###################################################
 #--Make array of file of files list from the outdir
-sub GetNames
-{
+sub GetNames {
 	my ( $fof, $outdir ) = @_;
 	my (@filenames) = ();
 	open( FOF, "$outdir/$fof" )
 	  || die "Cannot open ListFile: \"$outdir/$fof\"\n";
-	while (<FOF>)
-	{
+	while (<FOF>) {
 		$_ =~ s/\s//g;
 		my $filename = pop @{ [ split( "/", $_ ) ] };
 		push( @filenames, $filename );
@@ -1016,20 +944,17 @@ sub GetNames
 ###################################################
 ###################################################
 #--Make Pairs of the files.
-sub MAKEPAIRS
-{
+sub MAKEPAIRS {
 	my ( $filenames, $outdir ) = @_;
 	my @names      = @$filenames;
 	my $count      = scalar @names;
 	my (@newnames) = ();
-	if ( $count % 2 != 0 )
-	{
+	if ( $count % 2 != 0 ) {
 		print STDERR "\nOdd number of files given, please check Input file.\n";
 		exit;
-	} else
-	{
-		for ( my $i = 0 ; $i < scalar(@names) ; $i += 2 )
-		{
+	}
+	else {
+		for ( my $i = 0 ; $i < scalar(@names) ; $i += 2 ) {
 			chomp( $names[$i] );
 			chomp( $names[ $i + 1 ] );
 			push( @newnames, "$names[$i],$names[$i+1]" );
@@ -1040,25 +965,22 @@ sub MAKEPAIRS
 #####################################
 #####################################
 #Read data related to samples as well as barcodes.
-sub ReadSampleFile
-{
+sub ReadSampleFile {
 	my ( $sampleFile, $projectName, $outdir ) = @_;
 	my (
-		 @fcId,        @lane,    @sampleId, @sampleRef, @index,
-		 @description, @control, @recipe,   @operator,  @sampleProject
+		@fcId,        @lane,    @sampleId, @sampleRef, @index,
+		@description, @control, @recipe,   @operator,  @sampleProject
 	) = ();
 	my $sampleFileName = "";
-	if ( $sampleFile =~ /\// )
-	{
+	if ( $sampleFile =~ /\// ) {
 		$sampleFileName = pop @{ [ split( "/", $sampleFile ) ] };
-	} else
-	{
+	}
+	else {
 		$sampleFileName = $sampleFile;
 	}
 	open( SAMPLEFILE, $sampleFile )
 	  || die "Cannot open SAMPLEFILE:$sampleFile,$!\n";
-	while (<SAMPLEFILE>)
-	{
+	while (<SAMPLEFILE>) {
 		next if $. == 1;
 		my @dataCols = split( ",", $_ );
 		if ( $dataCols[0] ) { push( @fcId,          $dataCols[0] ); }
@@ -1073,21 +995,19 @@ sub ReadSampleFile
 		if ( $dataCols[9] ) { push( @sampleProject, $dataCols[9] ); }
 	}
 	close(SAMPLEFILE);
-	if ( !-e "$outdir/$sampleFileName" )
-	{
+	if ( !-e "$outdir/$sampleFileName" ) {
 		`cp $sampleFile $outdir/$sampleFileName`;
 	}
 	return (
-			 \@fcId,     \@lane,        \@sampleId, \@sampleRef,
-			 \@index,    \@description, \@control,  \@recipe,
-			 \@operator, \@sampleProject
+		\@fcId,     \@lane,        \@sampleId, \@sampleRef,
+		\@index,    \@description, \@control,  \@recipe,
+		\@operator, \@sampleProject
 	);
 }
 #####################################
 #####################################
 #Read data related to samples as well as barcodes from title file.
-sub ReadTitleFile
-{
+sub ReadTitleFile {
 	my ( $titleFile, $outdir ) = @_;
 	my @barcode      = ();
 	my @pool         = ();
@@ -1105,8 +1025,7 @@ sub ReadTitleFile
 	open( TFH, $titleFile )
 	  || die "Cannot open file TitleFile:$titleFile, $!\n";
 
-	while (<TFH>)
-	{
+	while (<TFH>) {
 		next if ( $. == 1 );
 		my @dataCols = split( "\t", $_ );
 		my @newDatacols =
@@ -1126,38 +1045,34 @@ sub ReadTitleFile
 	close(TFH);
 	my $poolName = $pool[0];
 	my $newtitleFileName;
-	if ( $type eq "germline" )
-	{
+	if ( $type eq "germline" ) {
 		$newtitleFileName = $poolName . "_title.nvn.txt";
-	} else
-	{
+	}
+	else {
 		$newtitleFileName = $poolName . "_title.txt";
 	}
-	if ( !-e "$outdir/$newtitleFileName" )
-	{
+	if ( !-e "$outdir/$newtitleFileName" ) {
 		`cp $titleFile $outdir/$newtitleFileName`;
 	}
 	return (
-			 \@barcode,      \@pool,      \@sampleId,   \@collabId,
-			 \@patientId,    \@class,     \@sampleType, \@inputNg,
-			 \@libraryYeild, \@poolInput, \@baitVersion
+		\@barcode,      \@pool,      \@sampleId,   \@collabId,
+		\@patientId,    \@class,     \@sampleType, \@inputNg,
+		\@libraryYeild, \@poolInput, \@baitVersion
 	);
 }
 #####################################
 #####################################
 #sort by barcode name:
-sub lowestNumber
-{
-	my $files     = shift;
+sub lowestNumber {
+	my $files = shift;
 	my @filenames = split( ",", $files );
-	my ($number)  = $filenames[0] =~ m/.*_bc(\d{1,2})_.*/g;
+	my ($number) = $filenames[0] =~ m/.*_bc(\d{1,2})_.*/g;
 	return $number;
 }
 #####################################
 #####################################
 #Merge data from reading data from the directory
-sub MergeDataFromDirectory
-{
+sub MergeDataFromDirectory {
 	my @lane          = @$lane;
 	my @sampleId      = @$sampleId;
 	my @index         = @$index;
@@ -1176,8 +1091,7 @@ sub MergeDataFromDirectory
 	open( BARCODEFILE, $barcodeFile )
 	  || die "Cannot open BARCODEFILE:$barcodeFile,$!\n";
 
-	while (<BARCODEFILE>)
-	{
+	while (<BARCODEFILE>) {
 		next if ( $. == 1 );
 		my @dataCols = split( "\t", $_ );
 		$dataCols[0] =~ s/\s//g;
@@ -1187,10 +1101,8 @@ sub MergeDataFromDirectory
 	}
 	close(BARCODEFILE);
 	print "Running merge jobs on SGE at " . localtime() . "\n";
-	if ( $fastqSource =~ /DMP|PATH/i )
-	{
-		foreach my $i ( 0 .. $#titleBarcode )
-		{
+	if ( $fastqSource =~ /DMP|PATH/i ) {
+		foreach my $i ( 0 .. $#titleBarcode ) {
 			my $newIndex = $titleBarcode[$i];
 			my $name =
 			    $titleSampleId[$i] . "_"
@@ -1198,10 +1110,8 @@ sub MergeDataFromDirectory
 			  . $titlePool[$i];
 			my $read1ListName = "";
 			my $read2ListName = "";
-			foreach my $j ( 0 .. $#sampleId )
-			{
-				if ( $index[$j] eq $indexHash{ $titleBarcode[$i] } )
-				{
+			foreach my $j ( 0 .. $#sampleId ) {
+				if ( $index[$j] eq $indexHash{ $titleBarcode[$i] } ) {
 					$read1ListName .=
 					    $datadir . "/"
 					  . $sampleId[$j] . "_"
@@ -1218,129 +1128,129 @@ sub MergeDataFromDirectory
 			}
 			my $read1Name = $outdir . "/" . $name . "_L000_R1_mrg.fastq.gz";
 			my $read2Name = $outdir . "/" . $name . "_L000_R2_mrg.fastq.gz";
-			if (     ( -e $read1Name )
-				 and ( ( -s $read1Name ) != 0 )
-				 and ( -e $read2Name )
-				 and ( ( -s $read2Name ) != 0 ) )
+			if (    ( -e $read1Name )
+				and ( ( -s $read1Name ) != 0 )
+				and ( -e $read2Name )
+				and ( ( -s $read2Name ) != 0 ) )
 			{
 				print
 "Files:\n$read1Name\n$read2Name\n they exists and process will not run to merge files.\n";
 				push( @notifyNames,    $Null );
 				push( @notifyNames,    $Null );
 				push( @parseFilenames, "$read1Name,$read2Name" );
-			} else
-			{
+			}
+			else {
 				my $notifyMergeCMD = "$outdir/Notify.csh";
 
 				#Read1
 				my $read1MergeCMD =
 				  "'$ZCAT $read1ListName | $GZIP > $read1Name'";
-				if ( $CLUSTER eq "SGE" )
-				{
+				if ( $CLUSTER eq "SGE" ) {
+
 #`qsub -q all.q -V -wd $outdir -N MergeRead1.$newIndex.$i.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -e MergeRead1.$newIndex.$i.$$.err -o /dev/null -b y "/bin/zcat $read1ListName | gzip > $read1Name"`;
 					launchQsub(
-								$read1MergeCMD,
-								$outdir,
-								"8G",
-								"/dev/null",
-								"MergeRead1.$newIndex.$i.$$.stderr",
-								"1",
-								"$queue",
-								"MergeRead1.$newIndex.$i.$$",
-								"Null"
+						$read1MergeCMD,
+						$outdir,
+						"8G",
+						"/dev/null",
+						"MergeRead1.$newIndex.$i.$$.stderr",
+						"1",
+						"$queue",
+						"MergeRead1.$newIndex.$i.$$",
+						"Null"
 					);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MergeRead1.$newIndex.$i.$$ -N NotifyMR.Read1.$i.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyMR.Read1.$i.$$.stat -b y "$outdir/Notify.csh"`;
 					launchQsub(
-								$notifyMergeCMD,
-								$outdir,
-								"2G",
-								"NotifyMR.Read1.$i.$$.stat",
-								"NotifyMR.Read1.$i.$$.stderr",
-								"1",
-								"$queue",
-								"NotifyMR.Read1.$i.$$",
-								"MergeRead1.$newIndex.$i.$$"
+						$notifyMergeCMD,
+						$outdir,
+						"2G",
+						"NotifyMR.Read1.$i.$$.stat",
+						"NotifyMR.Read1.$i.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyMR.Read1.$i.$$",
+						"MergeRead1.$newIndex.$i.$$"
 					);
-				} else
-				{
+				}
+				else {
 					launchBsub(
-								$read1MergeCMD,
-								$outdir,
-								"8G",
-								"/dev/null",
-								"MergeRead1.$newIndex.$i.$$.stderr",
-								"1",
-								"$queue",
-								"MergeRead1.$newIndex.$i.$$",
-								"Null"
+						$read1MergeCMD,
+						$outdir,
+						"8G",
+						"/dev/null",
+						"MergeRead1.$newIndex.$i.$$.stderr",
+						"1",
+						"$queue",
+						"MergeRead1.$newIndex.$i.$$",
+						"Null"
 					);
 					launchBsub(
-								$notifyMergeCMD,
-								$outdir,
-								"2G",
-								"NotifyMR.Read1.$i.$$.stat",
-								"NotifyMR.Read1.$i.$$.stderr",
-								"1",
-								"$queue",
-								"NotifyMR.Read1.$i.$$",
-								"MergeRead1.$newIndex.$i.$$"
+						$notifyMergeCMD,
+						$outdir,
+						"2G",
+						"NotifyMR.Read1.$i.$$.stat",
+						"NotifyMR.Read1.$i.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyMR.Read1.$i.$$",
+						"MergeRead1.$newIndex.$i.$$"
 					);
 				}
 
 				#Read2
 				my $read2MergeCMD =
 				  "'$ZCAT $read2ListName | $GZIP > $read2Name'";
-				if ( $CLUSTER eq "SGE" )
-				{
+				if ( $CLUSTER eq "SGE" ) {
+
 #`qsub -q all.q -V -wd $outdir -N MergeRead2.$newIndex.$i.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -e MergeRead2.$newIndex.$i.$$.err -o /dev/null -b y "/bin/zcat $read2ListName | gzip > $read2Name"`;
 					launchQsub(
-								$read2MergeCMD,
-								$outdir,
-								"8G",
-								"/dev/null",
-								"MergeRead2.$newIndex.$i.$$.stderr",
-								"1",
-								"$queue",
-								"MergeRead2.$newIndex.$i.$$",
-								"Null"
+						$read2MergeCMD,
+						$outdir,
+						"8G",
+						"/dev/null",
+						"MergeRead2.$newIndex.$i.$$.stderr",
+						"1",
+						"$queue",
+						"MergeRead2.$newIndex.$i.$$",
+						"Null"
 					);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MergeRead2.$newIndex.$i.$$ -N NotifyMR.Read2.$i.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyMR.Read2.$i.$$.stat -b y "$outdir/Notify.csh"`;
 					launchQsub(
-								$notifyMergeCMD,
-								$outdir,
-								"2G",
-								"NotifyMR.Read2.$i.$$.stat",
-								"NotifyMR.Read2.$i.$$.stderr",
-								"1",
-								"$queue",
-								"NotifyMR.Read2.$i.$$",
-								"MergeRead2.$newIndex.$i.$$"
+						$notifyMergeCMD,
+						$outdir,
+						"2G",
+						"NotifyMR.Read2.$i.$$.stat",
+						"NotifyMR.Read2.$i.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyMR.Read2.$i.$$",
+						"MergeRead2.$newIndex.$i.$$"
 					);
-				} else
-				{
+				}
+				else {
 					launchBsub(
-								$read2MergeCMD,
-								$outdir,
-								"8G",
-								"/dev/null",
-								"MergeRead2.$newIndex.$i.$$.stderr",
-								"1",
-								"$queue",
-								"MergeRead2.$newIndex.$i.$$",
-								"Null"
+						$read2MergeCMD,
+						$outdir,
+						"8G",
+						"/dev/null",
+						"MergeRead2.$newIndex.$i.$$.stderr",
+						"1",
+						"$queue",
+						"MergeRead2.$newIndex.$i.$$",
+						"Null"
 					);
 					launchBsub(
-								$notifyMergeCMD,
-								$outdir,
-								"2G",
-								"NotifyMR.Read2.$i.$$.stat",
-								"NotifyMR.Read2.$i.$$.stderr",
-								"1",
-								"$queue",
-								"NotifyMR.Read2.$i.$$",
-								"MergeRead2.$newIndex.$i.$$"
+						$notifyMergeCMD,
+						$outdir,
+						"2G",
+						"NotifyMR.Read2.$i.$$.stat",
+						"NotifyMR.Read2.$i.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyMR.Read2.$i.$$",
+						"MergeRead2.$newIndex.$i.$$"
 					);
 				}
 				push( @notifyNames,    "NotifyMR.Read1.$i.$$.stat" );
@@ -1351,24 +1261,25 @@ sub MergeDataFromDirectory
 		&WaitToFinish( $outdir, @notifyNames );
 		$now = time - $now;
 		print "Finished running merge jobs on SGE at " . localtime() . "\n";
-		printf( "Total running time: %02d:%02d:%02d\n\n",
-				int( $now / 3600 ),
-				int( ( $now % 3600 ) / 60 ),
-				int( $now % 60 ) );
+		printf(
+			"Total running time: %02d:%02d:%02d\n\n",
+			int( $now / 3600 ),
+			int( ( $now % 3600 ) / 60 ),
+			int( $now % 60 )
+		);
 		my (@sortedparseFilenames) =
 		  sort { lowestNumber($a) <=> lowestNumber($b) } @parseFilenames;
 		return ( \@sortedparseFilenames );
-	} else
-	{
-		for ( my $i = 0 ; $i < scalar(@titleBarcode) ; $i++ )
-		{
+	}
+	else {
+		for ( my $i = 0 ; $i < scalar(@titleBarcode) ; $i++ ) {
 			$titleInfo{ $titleBarcode[$i] } =
 			    $titleSampleId[$i] . "_"
 			  . $titleBarcode[$i] . "_"
 			  . $titlePool[$i];
 		}
 		for ( my $sampleNum = 0 ;
-			  $sampleNum < scalar(@sampleId) ; $sampleNum++ )
+			$sampleNum < scalar(@sampleId) ; $sampleNum++ )
 		{
 			my $read1ListName =
 			    $datadir . "/"
@@ -1382,41 +1293,39 @@ sub MergeDataFromDirectory
 			  . $index[$sampleNum] . "_L00"
 			  . $lane[$sampleNum]
 			  . "_R2_*.fastq.gz";
-			if ( exists $barcodes{ $index[$sampleNum] } )
-			{
+			if ( exists $barcodes{ $index[$sampleNum] } ) {
 				$newIndex = $barcodes{ $index[$sampleNum] };
-				if ( exists $titleInfo{$newIndex} )
-				{
+				if ( exists $titleInfo{$newIndex} ) {
 					$name = $titleInfo{$newIndex};
-				} else
-				{
+				}
+				else {
 					print
 "The barcode $newIndex doesnot exists in the title file. Cannot move ahead. Please check and rerun.\n";
 					exit;
 				}
-			} else
-			{
+			}
+			else {
 				print
 "The barcode sequence $barcodes{$index[$sampleNum]} does not exists in barcode file. Cannot move ahead. Please check and rerun.\n";
 				exit;
 			}
 			my $read1Name =
-			    $outdir . "/"
+			    $outdir . "/" 
 			  . $name . "_L00"
 			  . $lane[$sampleNum]
 			  . "_R1_mrg.fastq.gz";
 			my $read2Name =
-			    $outdir . "/"
+			    $outdir . "/" 
 			  . $name . "_L00"
 			  . $lane[$sampleNum]
 			  . "_R2_mrg.fastq.gz";
 
 			#Run the qsub command to merge the files.
 			#Read1
-			if (     ( -e $read1Name )
-				 and ( ( -s $read1Name ) != 0 )
-				 and ( -e $read2Name )
-				 and ( ( -s $read2Name ) != 0 ) )
+			if (    ( -e $read1Name )
+				and ( ( -s $read1Name ) != 0 )
+				and ( -e $read2Name )
+				and ( ( -s $read2Name ) != 0 ) )
 			{
 				print
 "Files:\n$read1Name\n$read2Name\n they exists and process will not run to merge files.\n";
@@ -1424,119 +1333,119 @@ sub MergeDataFromDirectory
 				push( @notifyNames,    $Null );
 				push( @parseFilenames, "$read1Name,$read2Name" );
 				next;
-			} else
-			{
+			}
+			else {
 				my $notifyMergeCMD = "$outdir/Notify.csh";
 
 				#Read1
 				my $read1MergeCMD =
 				  "'$ZCAT $read1ListName | $GZIP > $read1Name'";
-				if ( $CLUSTER eq "SGE" )
-				{
+				if ( $CLUSTER eq "SGE" ) {
+
 #`qsub -q all.q -V -wd $outdir -N MergeRead1.$newIndex.$sampleNum.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -e MergeRead1.$newIndex.$sampleNum.$$.err -o /dev/null -b y "/bin/zcat $read1ListName | gzip > $read1Name"`;
 					launchQsub(
-								$read1MergeCMD,
-								$outdir,
-								"8G",
-								"/dev/null",
-								"MergeRead1.$newIndex.$sampleNum.$$.stderr",
-								"1",
-								"$queue",
-								"MergeRead1.$newIndex.$sampleNum.$$",
-								"Null"
+						$read1MergeCMD,
+						$outdir,
+						"8G",
+						"/dev/null",
+						"MergeRead1.$newIndex.$sampleNum.$$.stderr",
+						"1",
+						"$queue",
+						"MergeRead1.$newIndex.$sampleNum.$$",
+						"Null"
 					);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MergeRead1.$newIndex.$sampleNum.$$ -N NotifyMR.Read1.$sampleNum.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyMR.Read1.$sampleNum.$$.stat -b y "$outdir/Notify.csh"`;
 					launchQsub(
-								$notifyMergeCMD,
-								$outdir,
-								"2G",
-								"NotifyMR.Read1.$sampleNum.$$.stat",
-								"NotifyMR.Read1.$sampleNum.$$.stderr",
-								"1",
-								"$queue",
-								"NotifyMR.Read1.$sampleNum.$$",
-								"MergeRead1.$newIndex.$sampleNum.$$"
+						$notifyMergeCMD,
+						$outdir,
+						"2G",
+						"NotifyMR.Read1.$sampleNum.$$.stat",
+						"NotifyMR.Read1.$sampleNum.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyMR.Read1.$sampleNum.$$",
+						"MergeRead1.$newIndex.$sampleNum.$$"
 					);
-				} else
-				{
+				}
+				else {
 					launchBsub(
-								$read1MergeCMD,
-								$outdir,
-								"8G",
-								"/dev/null",
-								"MergeRead1.$newIndex.$sampleNum.$$.stderr",
-								"1",
-								"$queue",
-								"MergeRead1.$newIndex.$sampleNum.$$",
-								"Null"
+						$read1MergeCMD,
+						$outdir,
+						"8G",
+						"/dev/null",
+						"MergeRead1.$newIndex.$sampleNum.$$.stderr",
+						"1",
+						"$queue",
+						"MergeRead1.$newIndex.$sampleNum.$$",
+						"Null"
 					);
 					launchBsub(
-								$notifyMergeCMD,
-								$outdir,
-								"2G",
-								"NotifyMR.Read1.$sampleNum.$$.stat",
-								"NotifyMR.Read1.$sampleNum.$$.stderr",
-								"1",
-								"$queue",
-								"NotifyMR.Read1.$sampleNum.$$",
-								"MergeRead1.$newIndex.$sampleNum.$$"
+						$notifyMergeCMD,
+						$outdir,
+						"2G",
+						"NotifyMR.Read1.$sampleNum.$$.stat",
+						"NotifyMR.Read1.$sampleNum.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyMR.Read1.$sampleNum.$$",
+						"MergeRead1.$newIndex.$sampleNum.$$"
 					);
 				}
 
 				#Read2
 				my $read2MergeCMD =
 				  "'$ZCAT $read2ListName | $GZIP > $read2Name'";
-				if ( $CLUSTER eq "SGE" )
-				{
+				if ( $CLUSTER eq "SGE" ) {
+
 #`qsub -q all.q -V -wd $outdir -N MergeRead2.$newIndex.$sampleNum.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -e MergeRead2.$newIndex.$sampleNum.$$.err -o /dev/null -b y "/bin/zcat $read2ListName | gzip > $read2Name"`;
 					launchQsub(
-								$read2MergeCMD,
-								$outdir,
-								"8G",
-								"/dev/null",
-								"MergeRead2.$newIndex.$sampleNum.$$.stderr",
-								"1",
-								"$queue",
-								"MergeRead2.$newIndex.$sampleNum.$$",
-								"Null"
+						$read2MergeCMD,
+						$outdir,
+						"8G",
+						"/dev/null",
+						"MergeRead2.$newIndex.$sampleNum.$$.stderr",
+						"1",
+						"$queue",
+						"MergeRead2.$newIndex.$sampleNum.$$",
+						"Null"
 					);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MergeRead2.$newIndex.$sampleNum.$$ -N NotifyMR.Read2.$sampleNum.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyMR.Read2.$sampleNum.$$.stat -b y "$outdir/Notify.csh"`;
 					launchQsub(
-								$notifyMergeCMD,
-								$outdir,
-								"2G",
-								"NotifyMR.Read2.$sampleNum.$$.stat",
-								"NotifyMR.Read2.$sampleNum.$$.stderr",
-								"1",
-								"$queue",
-								"NotifyMR.Read2.$sampleNum.$$",
-								"MergeRead2.$newIndex.$sampleNum.$$"
+						$notifyMergeCMD,
+						$outdir,
+						"2G",
+						"NotifyMR.Read2.$sampleNum.$$.stat",
+						"NotifyMR.Read2.$sampleNum.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyMR.Read2.$sampleNum.$$",
+						"MergeRead2.$newIndex.$sampleNum.$$"
 					);
-				} else
-				{
+				}
+				else {
 					launchBsub(
-								$read2MergeCMD,
-								$outdir,
-								"8G",
-								"/dev/null",
-								"MergeRead2.$newIndex.$sampleNum.$$.stderr",
-								"1",
-								"$queue",
-								"MergeRead2.$newIndex.$sampleNum.$$",
-								"Null"
+						$read2MergeCMD,
+						$outdir,
+						"8G",
+						"/dev/null",
+						"MergeRead2.$newIndex.$sampleNum.$$.stderr",
+						"1",
+						"$queue",
+						"MergeRead2.$newIndex.$sampleNum.$$",
+						"Null"
 					);
 					launchBsub(
-								$notifyMergeCMD,
-								$outdir,
-								"2G",
-								"NotifyMR.Read2.$sampleNum.$$.stat",
-								"NotifyMR.Read2.$sampleNum.$$.stderr",
-								"1",
-								"$queue",
-								"NotifyMR.Read2.$sampleNum.$$",
-								"MergeRead2.$newIndex.$sampleNum.$$"
+						$notifyMergeCMD,
+						$outdir,
+						"2G",
+						"NotifyMR.Read2.$sampleNum.$$.stat",
+						"NotifyMR.Read2.$sampleNum.$$.stderr",
+						"1",
+						"$queue",
+						"NotifyMR.Read2.$sampleNum.$$",
+						"MergeRead2.$newIndex.$sampleNum.$$"
 					);
 				}
 				push( @notifyNames,    "NotifyMR.Read1.$sampleNum.$$.stat" );
@@ -1547,10 +1456,12 @@ sub MergeDataFromDirectory
 		&WaitToFinish( $outdir, @notifyNames );
 		$now = time - $now;
 		print "Finished running merge jobs on SGE at " . localtime() . "\n";
-		printf( "Total running time: %02d:%02d:%02d\n\n",
-				int( $now / 3600 ),
-				int( ( $now % 3600 ) / 60 ),
-				int( $now % 60 ) );
+		printf(
+			"Total running time: %02d:%02d:%02d\n\n",
+			int( $now / 3600 ),
+			int( ( $now % 3600 ) / 60 ),
+			int( $now % 60 )
+		);
 	}
 	my (@sortedparseFilenames) =
 	  sort { lowestNumber($a) <=> lowestNumber($b) } @parseFilenames;
@@ -1561,15 +1472,13 @@ sub MergeDataFromDirectory
 #Do Mapping which includes:
 #Run BWA mem
 #Sort SAM
-sub DoMapping
-{
+sub DoMapping {
 	my ($filenames) = @_;
 	my ( @names, @notifyNames, @SAFilenames, @SamFilenames, @sortedBamFilenames,
-		 @MarkDuplicatesBamFilenames )
+		@MarkDuplicatesBamFilenames )
 	  = ();
 	if ($filenames) { (@names) = @$filenames; }
-	if ( ( scalar(@names) == 0 ) and ($fof) )
-	{
+	if ( ( scalar(@names) == 0 ) and ($fof) ) {
 		my @fnames = &GetNames( $fof, $outdir );
 		@names = &MAKEPAIRS( \@fnames, $outdir );
 	}
@@ -1586,8 +1495,7 @@ sub DoMapping
 	my %adaptorList = ();
 	open( ADAPTORFILE, $adaptorFile )
 	  or die "DoMapping:Cannot open $adaptorFile,Error:$!\n";
-	while (<ADAPTORFILE>)
-	{
+	while (<ADAPTORFILE>) {
 		my @dataCols = split( "\t", $_ );
 		$dataCols[0] =~ s/\s//g;
 		$dataCols[1] =~ s/\s//g;
@@ -1597,8 +1505,7 @@ sub DoMapping
 
 	#Running Cutadapt through Trim Galore
 	print "Started runing clipping jobs on SGE\n";
-	for ( my $i = 0 ; $i < scalar @names ; $i++ )
-	{
+	for ( my $i = 0 ; $i < scalar @names ; $i++ ) {
 		my ( $file1, $file2 ) = split( ",", $names[$i] );
 
 		#print "$file1\n$file2\n";
@@ -1612,17 +1519,18 @@ sub DoMapping
 	&WaitToFinish( $outdir, @notifyNames );
 	print "Finished running clipping jobs on SGE \n";
 	$now = time - $now;
-	printf( "Total Adaptor Clipping run time: %02d:%02d:%02d\n\n",
-			int( $now / 3600 ),
-			int( ( $now % 3600 ) / 60 ),
-			int( $now % 60 ) );
+	printf(
+		"Total Adaptor Clipping run time: %02d:%02d:%02d\n\n",
+		int( $now / 3600 ),
+		int( ( $now % 3600 ) / 60 ),
+		int( $now % 60 )
+	);
 
 	#Running BwaMem
 	$now = time;
 	print "Started runing bwa mem jobs on SGE at " . localtime() . "\n";
 	@notifyNames = ();
-	for ( my $i = 0 ; $i < scalar(@clippedFilenames) ; $i++ )
-	{
+	for ( my $i = 0 ; $i < scalar(@clippedFilenames) ; $i++ ) {
 		my ( $file1, $file2 ) = split( ",", $clippedFilenames[$i] );
 
 		#print "$file1\n$file2\n";
@@ -1637,17 +1545,18 @@ sub DoMapping
 	&WaitToFinish( $outdir, @notifyNames );
 	print "Finished running bwa mem jobs on SGE at " . localtime() . "\n";
 	$now = time - $now;
-	printf( "Total running time: %02d:%02d:%02d\n\n",
-			int( $now / 3600 ),
-			int( ( $now % 3600 ) / 60 ),
-			int( $now % 60 ) );
+	printf(
+		"Total running time: %02d:%02d:%02d\n\n",
+		int( $now / 3600 ),
+		int( ( $now % 3600 ) / 60 ),
+		int( $now % 60 )
+	);
 
 	#Run Sort Sam
 	$now = time;
 	print "Started running Sort Sam jobs on SGE at " . localtime() . "\n";
 	@notifyNames = ();
-	for ( my $i = 0 ; $i < scalar(@SamFilenames) ; $i++ )
-	{
+	for ( my $i = 0 ; $i < scalar(@SamFilenames) ; $i++ ) {
 		my ( $sortedBamFile, $notifyname ) =
 		  &RunSortSam( $SamFilenames[$i], $outdir, $i );
 		push( @notifyNames,        $notifyname );
@@ -1664,8 +1573,7 @@ sub DoMapping
 	print "Started running Mark Duplicates jobs on SGE at "
 	  . localtime() . "\n";
 	@notifyNames = ();
-	for ( my $i = 0 ; $i < scalar(@sortedBamFilenames) ; $i++ )
-	{
+	for ( my $i = 0 ; $i < scalar(@sortedBamFilenames) ; $i++ ) {
 		my ( $MarkDuplicatesBamFile, $notifyname ) =
 		  &RunMarkDuplicates( $sortedBamFilenames[$i], $outdir, $i );
 		push( @notifyNames,                $notifyname );
@@ -1677,75 +1585,68 @@ sub DoMapping
 	$now = time - $now;
 	print "Finished running Mark Duplicates jobs on SGE at "
 	  . localtime() . "\n";
-	printf( "Total running time: %02d:%02d:%02d\n\n",
-			int( $now / 3600 ),
-			int( ( $now % 3600 ) / 60 ),
-			int( $now % 60 ) );
+	printf(
+		"Total running time: %02d:%02d:%02d\n\n",
+		int( $now / 3600 ),
+		int( ( $now % 3600 ) / 60 ),
+		int( $now % 60 )
+	);
 	return ( \@MarkDuplicatesBamFilenames );
 }
 #####################################
 #####################################
 #Clip adapter sequences.
-sub RunTrimGalore
-{
+sub RunTrimGalore {
 	my ( $file1, $file2, $outdir, $adaptorList, $id ) = @_;
 	my %barcodeList = %$adaptorList;
-	my ($barcode)   = $file1 =~ /.*_(bc\d+)_.*/;
-	my $adapter1    = $barcodeList{$barcode};
+	my ($barcode) = $file1 =~ /.*_(bc\d+)_.*/;
+	my $adapter1 = $barcodeList{$barcode};
 	my $adapter2 = "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT";
-	my ($basename1)  = $file1 =~ /(.*)\.fastq.gz/;
+	my ($basename1) = $file1 =~ /(.*)\.fastq.gz/;
 	my $outFilename1 = "$basename1" . "_cl.fastq.gz";
-	my ($basename2)  = $file2 =~ /(.*)\.fastq.gz/;
+	my ($basename2) = $file2 =~ /(.*)\.fastq.gz/;
 	my $outFilename2 = "$basename2" . "_cl.fastq.gz";
 
-	if (     ( -e "$outFilename1" )
-		 and ( ( -s "$outFilename1" ) != 0 )
-		 and ( -e "$outFilename2" )
-		 and ( ( -s "$outFilename2" ) != 0 ) )
+	if (    ( -e "$outFilename1" )
+		and ( ( -s "$outFilename1" ) != 0 )
+		and ( -e "$outFilename2" )
+		and ( ( -s "$outFilename2" ) != 0 ) )
 	{
 		print
 "Files:\n$outFilename1\n$outFilename2\n they exists and process will not run to clip adapters in them.\n";
 		return ( "$outFilename1", "$outFilename2", 'NULL' );
-	} else
-	{
+	}
+	else {
 		my $clipReadCMD =
 "$PERL $TrimGalore --paired --gzip -q 1 --suppress_warn --stringency 3 -length 25 -o $outdir -a $adapter1 -a2 $adapter2 $file1 $file2";
-		if ( $CLUSTER eq "SGE" )
-		{
+		if ( $CLUSTER eq "SGE" ) {
+
 #`$QSUB -q $queue -V -wd $outdir -N Clipping.$id.$$ -o Clipping.$id.$$.stdout -e Clipping.$id.$$.stderr -l h_vmem=2G,virtual_free=2G -pe smp 1  -b y "$PERL $TrimGalore --paired --gzip -q 1 --suppress_warn --stringency 3 -length 25 -o $outdir -a $adapter1 -a2 $adapter2 $file1 $file2"`;
-			launchQsub(
-						$clipReadCMD,             $outdir,
-						"2G",                     "Clipping.$id.$$.stdout",
-						"Clipping.$id.$$.stderr", "1",
-						$queue,                   "Clipping.$id.$$",
-						"Null"
-			);
+			launchQsub( $clipReadCMD, $outdir, "2G", "Clipping.$id.$$.stdout",
+				"Clipping.$id.$$.stderr", "1", $queue, "Clipping.$id.$$",
+				"Null" );
 
 #`$QSUB -q $queue -V -wd $outdir -hold_jid Clipping.$id.$$ -N NotifyCR.$id.$$ -e NotifyCR.$id.$$.stderr -o NotifyCR.$id.$$.stat -l h_vmem=2G,virtual_free=2G -pe smp 1 -b y "$outdir/Notify.csh"`;
 			my $notifyClipCMD = "$outdir/Notify.csh";
 			launchQsub(
-						$notifyClipCMD,           $outdir,
-						"2G",                     "NotifyCR.$id.$$.stat",
-						"NotifyCR.$id.$$.stderr", "1",
-						"$queue",                 "NotifyCR.$id.$$",
-						"Clipping.$id.$$"
+				$notifyClipCMD,           $outdir,
+				"2G",                     "NotifyCR.$id.$$.stat",
+				"NotifyCR.$id.$$.stderr", "1",
+				"$queue",                 "NotifyCR.$id.$$",
+				"Clipping.$id.$$"
 			);
-		} else
-		{
-			launchQsub(
-						$clipReadCMD,             $outdir,
-						"2G",                     "Clipping.$id.$$.stdout",
-						"Clipping.$id.$$.stderr", "1",
-						$queue,                   "Clipping.$id.$$",
-						"Null"
-			);
+		}
+		else {
+			launchQsub( $clipReadCMD, $outdir, "2G", "Clipping.$id.$$.stdout",
+				"Clipping.$id.$$.stderr", "1", $queue, "Clipping.$id.$$",
+				"Null" );
 			my $notifyClipCMD = "$outdir/Notify.csh";
 			launchQsub(
-						$notifyClipCMD,           $outdir,
-						"2G",                     "NotifyCR.$id.$$.stat",
-						"NotifyCR.$id.$$.stderr", "1",
-						"$queue",                 "NotifyCR.$id.$$",
-						"Clipping.$id.$$"
+				$notifyClipCMD,           $outdir,
+				"2G",                     "NotifyCR.$id.$$.stat",
+				"NotifyCR.$id.$$.stderr", "1",
+				"$queue",                 "NotifyCR.$id.$$",
+				"Clipping.$id.$$"
 			);
 		}
 	}
@@ -1754,72 +1655,53 @@ sub RunTrimGalore
 #####################################
 #####################################
 #BWA MEM to align fastq.
-sub RunBwaMem
-{
+sub RunBwaMem {
 	my ( $fastq1, $fastq2, $outdir, $id ) = @_;
 	my ($basename) = $fastq1 =~ /(.*)_R1.*\.fastq.gz/;
 	my $outFilename = "$basename" . "_mrg_cl_aln.sam";
-	if ( $basename =~ /\// )
-	{
+	if ( $basename =~ /\// ) {
 		$basename = basename($basename);
 	}
 	my @sampleDetails = split( "_bc", $basename );
-	my $sampleId      = $sampleDetails[0];
-	my ($barcode)     = $basename =~ /.*_(bc\d+)_.*/;
-	my ($pool)        = $basename =~ /.*bc\d+_(.*)_L\d{1,3}_.*/;
-	if ( ( -e "$outFilename" ) and ( ( -s "$outFilename" ) != 0 ) )
-	{
+	my $sampleId = $sampleDetails[0];
+	my ($barcode) = $basename =~ /.*_(bc\d+)_.*/;
+	my ($pool)    = $basename =~ /.*bc\d+_(.*)_L\d{1,3}_.*/;
+	if ( ( -e "$outFilename" ) and ( ( -s "$outFilename" ) != 0 ) ) {
 		print
 "Files:\n$outFilename\n they exists and process will not run to make \"_aln.sam\" file.\n";
 		return ( "$outFilename", 'NULL' );
-	} else
-	{
+	}
+	else {
 		my $bwaCMD =
 "\"$bwa mem -t 4 -PM -R \'\@RG\\tID:$basename\\tLB:$id\\tSM:$sampleId\\tPL:Illumina\\tPU:$barcode\\tCN:MSKCC\' $refFile $fastq1 $fastq2\"";
-		if ( $CLUSTER eq "SGE" )
-		{
+		if ( $CLUSTER eq "SGE" ) {
+
 #`qsub -q all.q -wd $outdir -N bwaMem.$id.$$ -l h_vmem=6G,virtual_free=6G -pe smp $nprocessors -o $outFilename -e /dev/null -b y "$bwa mem -t 4 -PM -R \'\@RG\tID:$basename\tLB:$id\tSM:$sampleId\tPL:Illumina\tPU:$barcode\tCN:BergerLab_MSKCC\' $refFile $fastq1 $fastq2"`;
-			launchQsub(
-						$bwaCMD,                $outdir,
-						"6G",                   $outFilename,
-						"bwaMem.$id.$$.stderr", $nprocessors,
-						$queue,                 "bwaMem.$id.$$",
-						"Null"
-			);
+			launchQsub( $bwaCMD, $outdir, "6G", $outFilename,
+				"bwaMem.$id.$$.stderr", $nprocessors, $queue, "bwaMem.$id.$$",
+				"Null" );
 
 #`qsub -q all.q -V -wd $outdir -hold_jid bwaMem.$id.$$ -N NotifyBwaMem.$id.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyBwaMem.$id.$$.stat -b y "$outdir/Notify.csh"`;
 			my $notifyBwaCMD = "$outdir/Notify.csh";
 			launchQsub(
-						$notifyBwaCMD,
-						$outdir,
-						"2G",
-						"NotifyBwaMem.$id.$$.stat",
-						"NotifyBwaMem.$id.$$.stderr",
-						"1",
-						"$queue",
-						"NotifyBwaMem.$id.$$",
-						"bwaMem.$id.$$"
+				$notifyBwaCMD,                $outdir,
+				"2G",                         "NotifyBwaMem.$id.$$.stat",
+				"NotifyBwaMem.$id.$$.stderr", "1",
+				"$queue",                     "NotifyBwaMem.$id.$$",
+				"bwaMem.$id.$$"
 			);
-		} else
-		{
-			launchBsub(
-						$bwaCMD,                $outdir,
-						"6G",                   $outFilename,
-						"bwaMem.$id.$$.stderr", $nprocessors,
-						$queue,                 "bwaMem.$id.$$",
-						"Null"
-			);
+		}
+		else {
+			launchBsub( $bwaCMD, $outdir, "6G", $outFilename,
+				"bwaMem.$id.$$.stderr", $nprocessors, $queue, "bwaMem.$id.$$",
+				"Null" );
 			my $notifyBwaCMD = "$outdir/Notify.csh";
 			launchBsub(
-						$notifyBwaCMD,
-						$outdir,
-						"2G",
-						"NotifyBwaMem.$id.$$.stat",
-						"NotifyBwaMem.$id.$$.stderr",
-						"1",
-						"$queue",
-						"NotifyBwaMem.$id.$$",
-						"bwaMem.$id.$$"
+				$notifyBwaCMD,                $outdir,
+				"2G",                         "NotifyBwaMem.$id.$$.stat",
+				"NotifyBwaMem.$id.$$.stderr", "1",
+				"$queue",                     "NotifyBwaMem.$id.$$",
+				"bwaMem.$id.$$"
 			);
 		}
 	}
@@ -1828,64 +1710,45 @@ sub RunBwaMem
 #####################################
 #####################################
 #Sort Sam file
-sub RunSortSam
-{
+sub RunSortSam {
 	my ( $samFile, $outdir, $id ) = @_;
 	my $outFilename = $samFile;
 	$outFilename =~ s/\.sam/_srt\.bam/;
-	if ( ( -e "$outFilename" ) and ( ( -s "$outFilename" ) != 0 ) )
-	{
+	if ( ( -e "$outFilename" ) and ( ( -s "$outFilename" ) != 0 ) ) {
 		print
 "Files:\n$outFilename\n they exists and process will not run to make \"_srt.bam\" file.\n";
 		return ( "$outFilename", 'NULL' );
-	} else
-	{
+	}
+	else {
 		my $sortsamCMD =
 "$JAVA -Xmx4g -jar $PICARD/SortSam.jar I=$samFile O=$outFilename SO=coordinate TMP_DIR=$TMPDIR COMPRESSION_LEVEL=0 CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT";
-		if ( $CLUSTER eq "SGE" )
-		{
-			launchQsub(
-						$sortsamCMD,             $outdir,
-						"8G",                    "SortSam.$id.$$.stdout",
-						"SortSam.$id.$$.stderr", "1",
-						$queue,                  "SortSam.$id.$$",
-						"Null"
-			);
+		if ( $CLUSTER eq "SGE" ) {
+			launchQsub( $sortsamCMD, $outdir, "8G", "SortSam.$id.$$.stdout",
+				"SortSam.$id.$$.stderr", "1", $queue, "SortSam.$id.$$",
+				"Null" );
 
 #`qsub -q all.q -wd $outdir -N SortSam.$id.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -o /dev/null -e /dev/null -b y "$JAVA -Xmx4g -jar $PICARD/SortSam.jar I=$samFile O=$outFilename SO=coordinate TMP_DIR=$TMPDIR COMPRESSION_LEVEL=0 CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT"`;
 #`qsub -q all.q -V -wd $outdir -hold_jid SortSam.$id.$$ -N NotifySortSam.$id.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifySortSam.$id.$$.stat -b y "$outdir/Notify.csh"`;
 			my $notifySortsamCMD = "$outdir/Notify.csh";
 			launchQsub(
-						$notifySortsamCMD,
-						$outdir,
-						"2G",
-						"NotifySortSam.$id.$$.stat",
-						"NotifySortSam.$id.$$.stderr",
-						"1",
-						"$queue",
-						"NotifySortSam.$id.$$",
-						"SortSam.$id.$$"
+				$notifySortsamCMD,             $outdir,
+				"2G",                          "NotifySortSam.$id.$$.stat",
+				"NotifySortSam.$id.$$.stderr", "1",
+				"$queue",                      "NotifySortSam.$id.$$",
+				"SortSam.$id.$$"
 			);
-		} else
-		{
-			launchBsub(
-						$sortsamCMD,             $outdir,
-						"8G",                    "SortSam.$id.$$.stdout",
-						"SortSam.$id.$$.stderr", "1",
-						$queue,                  "SortSam.$id.$$",
-						"Null"
-			);
+		}
+		else {
+			launchBsub( $sortsamCMD, $outdir, "8G", "SortSam.$id.$$.stdout",
+				"SortSam.$id.$$.stderr", "1", $queue, "SortSam.$id.$$",
+				"Null" );
 			my $notifySortsamCMD = "$outdir/Notify.csh";
 			launchBsub(
-						$notifySortsamCMD,
-						$outdir,
-						"2G",
-						"NotifySortSam.$id.$$.stat",
-						"NotifySortSam.$id.$$.stderr",
-						"1",
-						"$queue",
-						"NotifySortSam.$id.$$",
-						"SortSam.$id.$$"
+				$notifySortsamCMD,             $outdir,
+				"2G",                          "NotifySortSam.$id.$$.stat",
+				"NotifySortSam.$id.$$.stderr", "1",
+				"$queue",                      "NotifySortSam.$id.$$",
+				"SortSam.$id.$$"
 			);
 		}
 	}
@@ -1894,48 +1757,46 @@ sub RunSortSam
 #####################################
 #####################################
 #Mark Duplicates in Bam
-sub RunMarkDuplicates
-{
+sub RunMarkDuplicates {
 	my ( $bamFile, $outdir, $id ) = @_;
 	my $outFilename     = $bamFile;
 	my $metricsFilename = $bamFile;
-	$outFilename =~ s/\.bam/_MD\.bam/g;
+	$outFilename     =~ s/\.bam/_MD\.bam/g;
 	$metricsFilename =~ s/\.bam/_MD\.metrics/g;
-	if ( ( -e "$outFilename" ) and ( ( -s "$outFilename" ) != 0 ) )
-	{
+	if ( ( -e "$outFilename" ) and ( ( -s "$outFilename" ) != 0 ) ) {
 		print
 "Files:\n$outFilename\n they exists and process will not run to make \"_MD.bam\" file.\n";
 		return ( "$outFilename", 'NULL' );
-	} else
-	{
+	}
+	else {
+
 #`qsub -q all.q -V -wd $outdir -N MD.$id.$$  -o /dev/null -e /dev/null -l h_vmem=8G,virtual_free=8G -pe smp 1 -b y "$JAVA -Xmx4g -jar $PICARD/MarkDuplicates.jar I=$bamFile O=$outFilename ASSUME_SORTED=true METRICS_FILE=$metricsFilename TMP_DIR=$TMPDIR COMPRESSION_LEVEL=0 CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT"`;
 		my $mdCMD =
 "$JAVA -Xmx4g -jar $PICARD/MarkDuplicates.jar I=$bamFile O=$outFilename ASSUME_SORTED=true METRICS_FILE=$metricsFilename TMP_DIR=$TMPDIR COMPRESSION_LEVEL=0 CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT";
-		if ( $CLUSTER eq "SGE" )
-		{
+		if ( $CLUSTER eq "SGE" ) {
 			launchQsub( $mdCMD, $outdir, "8G", "MD.$id.$$.stdout",
-						"MD.$id.$$.stderr", "1", $queue, "MD.$id.$$", "Null" );
+				"MD.$id.$$.stderr", "1", $queue, "MD.$id.$$", "Null" );
 
 #`qsub -q all.q -V -wd $outdir -hold_jid MD.$id.$$ -N NotifyMD.$id.$$ -e NotifyMD.$id.$$.stderr -o NotifyMD.$id.$$.stat -l h_vmem=2G,virtual_free=2G -pe smp 1 -b y "$outdir/Notify.csh"`;
 			my $notifyMdCMD = "$outdir/Notify.csh";
 			launchQsub(
-						$notifyMdCMD,             $outdir,
-						"2G",                     "NotifyMD.$id.$$.stat",
-						"NotifyMD.$id.$$.stderr", "1",
-						"$queue",                 "NotifyMD.$id.$$",
-						"MD.$id.$$"
+				$notifyMdCMD,             $outdir,
+				"2G",                     "NotifyMD.$id.$$.stat",
+				"NotifyMD.$id.$$.stderr", "1",
+				"$queue",                 "NotifyMD.$id.$$",
+				"MD.$id.$$"
 			);
-		} else
-		{
+		}
+		else {
 			launchBsub( $mdCMD, $outdir, "8G", "MD.$id.$$.stdout",
-						"MD.$id.$$.stderr", "1", $queue, "MD.$id.$$", "Null" );
+				"MD.$id.$$.stderr", "1", $queue, "MD.$id.$$", "Null" );
 			my $notifyMdCMD = "$outdir/Notify.csh";
 			launchBsub(
-						$notifyMdCMD,             $outdir,
-						"2G",                     "NotifyMD.$id.$$.stat",
-						"NotifyMD.$id.$$.stderr", "1",
-						"$queue",                 "NotifyMD.$id.$$",
-						"MD.$id.$$"
+				$notifyMdCMD,             $outdir,
+				"2G",                     "NotifyMD.$id.$$.stat",
+				"NotifyMD.$id.$$.stderr", "1",
+				"$queue",                 "NotifyMD.$id.$$",
+				"MD.$id.$$"
 			);
 		}
 	}
@@ -1944,13 +1805,11 @@ sub RunMarkDuplicates
 #####################################
 #####################################
 #This will calculate and compile metrics for BAM files:
-sub CalcHsMetrics
-{
+sub CalcHsMetrics {
 	my ($filenames) = @_;
 	my @names = ();
 	if ($filenames) { (@names) = @$filenames; }
-	if ( ( scalar(@names) == 0 ) and ($fof) )
-	{
+	if ( ( scalar(@names) == 0 ) and ($fof) ) {
 		@names = &GetNames( $fof, $outdir );
 	}
 	my @notifyNames = ();
@@ -1962,11 +1821,9 @@ sub CalcHsMetrics
 	$now = time;
 	print "Started running metrics calculation jobs on SGE at "
 	  . localtime() . "\n";
-	for ( my $i = 0 ; $i < scalar(@names) ; $i++ )
-	{
+	for ( my $i = 0 ; $i < scalar(@names) ; $i++ ) {
 		my $waitFileNames = &RunHsMetrics( $names[$i], $outdir, $i );
-		foreach my $waitName (@$waitFileNames)
-		{
+		foreach my $waitName (@$waitFileNames) {
 			push( @notifyNames, $waitName );
 		}
 	}
@@ -1976,19 +1833,20 @@ sub CalcHsMetrics
 	$now = time - $now;
 	print "Finished running metrics calculation jobs on SGE at "
 	  . localtime() . "\n";
-	printf( "Total running time: %02d:%02d:%02d\n\n",
-			int( $now / 3600 ),
-			int( ( $now % 3600 ) / 60 ),
-			int( $now % 60 ) );
+	printf(
+		"Total running time: %02d:%02d:%02d\n\n",
+		int( $now / 3600 ),
+		int( ( $now % 3600 ) / 60 ),
+		int( $now % 60 )
+	);
 	return ( \@names );
 }
 #####################################
 #####################################
 #Run Picard HsMetrics
-sub RunHsMetrics
-{
+sub RunHsMetrics {
 	my ( $bamFile, $outdir, $id ) = @_;
-	my ($basename)        = $bamFile =~ /(.*)\.bam/;
+	my ($basename) = $bamFile =~ /(.*)\.bam/;
 	my $HSmetricsFilename = $basename . ".HSmetrics.txt";
 	my @notifynames       = ();
 
@@ -1998,55 +1856,54 @@ sub RunHsMetrics
 		print
 "Files:\n$HSmetricsFilename\n they exists and process will not run to make \".HSmetrics.txt\" file.\n";
 		push( @notifynames, "NULL" );
-	} else
-	{
+	}
+	else {
 		my $hsMetricsCMD =
 "$JAVA -Xmx4g -jar $PICARD/CalculateHsMetrics.jar I=$bamFile O=$HSmetricsFilename BI=$baitIntervalFile TI=$targetIntervalFile REFERENCE_SEQUENCE=$refFile TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=LENIENT";
 
 #`qsub -q all.q -wd $outdir -N HSmetrics.$id.$$ -l h_vmem=8G,virtual_free=8G -pe smp 1 -o /dev/null -e /dev/null -b y "$JAVA -Xmx4g -jar $PICARD/CalculateHsMetrics.jar I=$bamFile O=$HSmetricsFilename BI=$baitIntervalFile TI=$targetIntervalFile REFERENCE_SEQUENCE=$refFile TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=LENIENT"`;
-		if ( $CLUSTER eq "SGE" )
-		{
+		if ( $CLUSTER eq "SGE" ) {
 			launchQsub(
-						$hsMetricsCMD,             $outdir,
-						"8G",                      "HSmetrics.$id.$$.stdout",
-						"HSmetrics.$id.$$.stderr", "1",
-						$queue,                    "HSmetrics.$id.$$",
-						"Null"
+				$hsMetricsCMD,             $outdir,
+				"8G",                      "HSmetrics.$id.$$.stdout",
+				"HSmetrics.$id.$$.stderr", "1",
+				$queue,                    "HSmetrics.$id.$$",
+				"Null"
 			);
 
 #`qsub -q all.q -V -wd $outdir -hold_jid HSmetrics.$id.$$ -N NotifyHSmetrics.$id.$$ -l h_vmem=2G,virtual_free=2G -pe smp 1 -e /dev/null -o NotifyHSmetrics.$id.$$.stat -b y "$outdir/Notify.csh"`;
 			my $notifyHsMetricsCMD = "$outdir/Notify.csh";
 			launchQsub(
-						$notifyHsMetricsCMD,
-						$outdir,
-						"2G",
-						"NotifyHSmetrics.$id.$$.stat",
-						"NotifyHSmetrics.$id.$$.stderr",
-						"1",
-						"$queue",
-						"NotifyHSmetrics.$id.$$",
-						"HSmetrics.$id.$$"
+				$notifyHsMetricsCMD,
+				$outdir,
+				"2G",
+				"NotifyHSmetrics.$id.$$.stat",
+				"NotifyHSmetrics.$id.$$.stderr",
+				"1",
+				"$queue",
+				"NotifyHSmetrics.$id.$$",
+				"HSmetrics.$id.$$"
 			);
-		} else
-		{
+		}
+		else {
 			launchBsub(
-						$hsMetricsCMD,             $outdir,
-						"8G",                      "HSmetrics.$id.$$.stdout",
-						"HSmetrics.$id.$$.stderr", "1",
-						$queue,                    "HSmetrics.$id.$$",
-						"Null"
+				$hsMetricsCMD,             $outdir,
+				"8G",                      "HSmetrics.$id.$$.stdout",
+				"HSmetrics.$id.$$.stderr", "1",
+				$queue,                    "HSmetrics.$id.$$",
+				"Null"
 			);
 			my $notifyHsMetricsCMD = "$outdir/Notify.csh";
 			launchBsub(
-						$notifyHsMetricsCMD,
-						$outdir,
-						"2G",
-						"NotifyHSmetrics.$id.$$.stat",
-						"NotifyHSmetrics.$id.$$.stderr",
-						"1",
-						"$queue",
-						"NotifyHSmetrics.$id.$$",
-						"HSmetrics.$id.$$"
+				$notifyHsMetricsCMD,
+				$outdir,
+				"2G",
+				"NotifyHSmetrics.$id.$$.stat",
+				"NotifyHSmetrics.$id.$$.stderr",
+				"1",
+				"$queue",
+				"NotifyHSmetrics.$id.$$",
+				"HSmetrics.$id.$$"
 			);
 		}
 		push( @notifynames, "NotifyHSmetrics.$id.$$.stat" );
@@ -2057,16 +1914,14 @@ sub RunHsMetrics
 #####################################
 #This will help to call:
 #Somatic SVs: Delly
-sub CallStructuralVariants
-{
+sub CallStructuralVariants {
 	my ($filenames) = @_;
 	my @names       = ();
 	my @FilterData  = ();
 	if ($filenames) { (@names) = @$filenames; }
 
 	#print "F:$fof\n";
-	if ( ( scalar(@names) == 0 ) and ($fof) )
-	{
+	if ( ( scalar(@names) == 0 ) and ($fof) ) {
 		@names = &GetNames( $fof, $outdir );
 	}
 	my @notifyNames = ();
@@ -2088,10 +1943,8 @@ sub CallStructuralVariants
 	my $NormalUsed = $poolName . "_NormalUsedInSVcalling.txt";
 	my @fileNames  = ();
 	my ( $waitFileNames, $svOutdir );
-	if ( $names[0] =~ /\// )
-	{
-		foreach (@names)
-		{
+	if ( $names[0] =~ /\// ) {
+		foreach (@names) {
 			my $filename = pop @{ [ split( "/", $_ ) ] };
 			push( @fileNames, $filename );
 		}
@@ -2104,16 +1957,16 @@ sub CallStructuralVariants
 	my $fCount = 0;
 
 	#Group the files
-	foreach my $file (@names)
-	{
-		if ( exists $groupedFilenames{ @$patientId[$fCount] } )
-		{
+	foreach my $file (@names) {
+		if ( exists $groupedFilenames{ @$patientId[$fCount] } ) {
+
 			#print "$file:$fCount:@$patientId[$fCount]\n";
 			my $files = $groupedFilenames{ @$patientId[$fCount] };
 			$files = "$files" . ",$file";
 			$groupedFilenames{ @$patientId[$fCount] } = "$files";
-		} else
-		{
+		}
+		else {
+
 			#print "$file:$fCount:@$patientId[$fCount]\n";
 			$groupedFilenames{ @$patientId[$fCount] } = "$file";
 		}
@@ -2123,8 +1976,8 @@ sub CallStructuralVariants
 	#Get Mean Coverage from HSmetrics file.
 	my $poolNormalMeanCov;
 	my $poolNormal;
-	foreach my $file (@names)
-	{
+	foreach my $file (@names) {
+
 		#print "$file\n";
 		my ($fileBarcode)  = $file =~ /.*_(bc\d+)_.*/;
 		my ($fileSampleId) = $file =~ /(.*)_bc\d+_/;
@@ -2133,21 +1986,17 @@ sub CallStructuralVariants
 		my $fileClass = $classPerBarcode{ $fileBarcode . "_" . $fileSampleId };
 
 		#print "$fileClass\n";
-		if ( $fileClass =~ m/Normal/i )
-		{
-			if ( $fileClass =~ m/PoolN/i )
-			{
+		if ( $fileClass =~ m/Normal/i ) {
+			if ( $fileClass =~ m/PoolN/i ) {
 				$poolNormal = $file;
 				my $HSmetricsFile = $file;
 				$HSmetricsFile =~ s/\.bam/\.HSmetrics\.txt/g;
 				open( FH, "$outdir/$HSmetricsFile" )
 				  or die
 "CallSomaticSV:Cannot Open $outdir/$HSmetricsFile, Error:$!\n";
-				while (<FH>)
-				{
+				while (<FH>) {
 					next until ( $_ =~ /^BAIT_SET/ );
-					while (<FH>)
-					{
+					while (<FH>) {
 						next if ( ( $_ =~ /^BAIT_SET/ ) or ( $_ =~ /^\s$/ ) );
 						my (@values) = split( "\t", $_ );
 						$poolNormalMeanCov = $values[21];
@@ -2155,8 +2004,8 @@ sub CallStructuralVariants
 				}
 				close(FH);
 				next;
-			} else
-			{
+			}
+			else {
 				my $HSmetricsFile = $file;
 				$HSmetricsFile =~ s/\.bam/\.HSmetrics\.txt/g;
 
@@ -2166,11 +2015,9 @@ sub CallStructuralVariants
 				  "Cannot Open HSmetricsFile:$outdir/$HSmetricsFile, $!\n";
 				my $meanCov;
 				my $CovForFile;
-				while (<FH>)
-				{
+				while (<FH>) {
 					next until ( $_ =~ /^BAIT_SET/ );
-					while (<FH>)
-					{
+					while (<FH>) {
 						next if ( ( $_ =~ /^BAIT_SET/ ) or ( $_ =~ /^\s$/ ) );
 						my (@values) = split( "\t", $_ );
 
@@ -2183,8 +2030,8 @@ sub CallStructuralVariants
 				$coverageForNormal{$file} = $CovForFile;
 				push( @CoveragePerSample, $meanCov );
 			}
-		} else
-		{
+		}
+		else {
 			next;
 		}
 	}
@@ -2193,18 +2040,15 @@ sub CallStructuralVariants
 	my $maxCoverage = max @CoveragePerSample;
 
 	#print "MAX:$maxCoverage\n";
-	while ( ( my $key, my $value ) = each(%coverageForNormal) )
-	{
-		if ( $value == $maxCoverage )
-		{
+	while ( ( my $key, my $value ) = each(%coverageForNormal) ) {
+		if ( $value == $maxCoverage ) {
 			$standardNormal = $key;
-		} else
-		{
+		}
+		else {
 			next;
 		}
 	}
-	if ( !$standardNormal )
-	{
+	if ( !$standardNormal ) {
 		$standardNormal = $stdNormal;
 	}
 
@@ -2212,8 +2056,7 @@ sub CallStructuralVariants
 	#print "PN:$poolNormal:$poolNormalMeanCov\n";
 	#Running Mutect and Somatic Indel Caller
 	my $count = 0;
-	while ( ( my $key, my $value ) = each(%groupedFilenames) )
-	{
+	while ( ( my $key, my $value ) = each(%groupedFilenames) ) {
 		my @files = split( ",", $value );
 
 		# Section of Normal
@@ -2223,26 +2066,22 @@ sub CallStructuralVariants
 		my $normal;
 
 		#	my $poolNormal;
-		foreach my $file (@files)
-		{
+		foreach my $file (@files) {
 			my ($fileBarcode)  = $file =~ /.*_(bc\d+)_.*/;
 			my ($fileSampleId) = $file =~ /(.*)_bc\d+_/;
 
 			#print $fileBarcode . "_" . $fileSampleId, "\n";
 			my $fileClass =
 			  $classPerBarcode{ $fileBarcode . "_" . $fileSampleId };
-			if ( $fileClass =~ m/Normal/i )
-			{
+			if ( $fileClass =~ m/Normal/i ) {
 				push( @normalSamples, $file );
-			} else
-			{
+			}
+			else {
 				next;
 			}
 		}
-		if ( scalar @normalSamples != 0 )
-		{
-			foreach my $file (@normalSamples)
-			{
+		if ( scalar @normalSamples != 0 ) {
+			foreach my $file (@normalSamples) {
 				my $HSmetricsFile = $file;
 				$HSmetricsFile =~ s/\.bam/\.HSmetrics\.txt/g;
 
@@ -2252,11 +2091,9 @@ sub CallStructuralVariants
 "CallSomaticSV:Cannot Open $outdir/$HSmetricsFile, Error:$!\n";
 				my $meanCov;
 				my $CovForFile;
-				while (<FH>)
-				{
+				while (<FH>) {
 					next until ( $_ =~ /^BAIT_SET/ );
-					while (<FH>)
-					{
+					while (<FH>) {
 						next if ( ( $_ =~ /^BAIT_SET/ ) or ( $_ =~ /^\s$/ ) );
 						my (@values) = split( "\t", $_ );
 
@@ -2274,87 +2111,77 @@ sub CallStructuralVariants
 			my $maxCoverage = max @CoverageForMultipleNormal;
 
 			#print "MAX:$maxCoverage\n";
-			if ( scalar @normalSamples > 1 )
-			{
+			if ( scalar @normalSamples > 1 ) {
 				while ( ( my $key, my $value ) =
-						each(%coverageForSampleNormals) )
+					each(%coverageForSampleNormals) )
 				{
-					if ( ( $value == $maxCoverage ) and ( $value >= 50 ) )
-					{
+					if ( ( $value == $maxCoverage ) and ( $value >= 50 ) ) {
 						$normal = $key;
-					} else
-					{
-						if ( $poolNormalMeanCov <= 50 )
-						{
+					}
+					else {
+						if ( $poolNormalMeanCov <= 50 ) {
 							$normal = $standardNormal;
-						} else
-						{
+						}
+						else {
 							$normal = $poolNormal;
 						}
 					}
 				}
-			} else
-			{
-				if ( scalar @normalSamples == 1 )
-				{
+			}
+			else {
+				if ( scalar @normalSamples == 1 ) {
 					my $coverage =
 					  $coverageForSampleNormals{ $normalSamples[0] };
-					if ( $coverage >= 50 )
-					{
+					if ( $coverage >= 50 ) {
 						$normal = $normalSamples[0];
-					} else
-					{
-						if ( $poolNormalMeanCov <= 50 )
-						{
+					}
+					else {
+						if ( $poolNormalMeanCov <= 50 ) {
 							$normal = $standardNormal;
-						} else
-						{
+						}
+						else {
 							$normal = $poolNormal;
 						}
 					}
-				} else
-				{
+				}
+				else {
 					$normal = $poolNormal;
 				}
 			}
-		} else
-		{
-			if ( $poolNormalMeanCov <= 50 )
-			{
+		}
+		else {
+			if ( $poolNormalMeanCov <= 50 ) {
 				$normal = $standardNormal;
-			} else
-			{
+			}
+			else {
 				$normal = $poolNormal;
 			}
 		}
 
 		#Check if the normal file is with full path
-		if ( $normal =~ /\// )
-		{
+		if ( $normal =~ /\// ) {
 			$normal = pop @{ [ split( "/", $normal ) ] };
-		} else
-		{
+		}
+		else {
 			$normal = $normal;
 		}
 
 		#RUN SV Calling Jobs
-		foreach my $file (@files)
-		{
+		foreach my $file (@files) {
 			my ($fileBarcode)  = $file =~ /.*_(bc\d+)_.*/;
 			my ($fileSampleId) = $file =~ /(.*)_bc\d+_/;
 			my $fileClass =
 			  $classPerBarcode{ $fileBarcode . "_" . $fileSampleId };
 			next if ( $fileClass =~ m/Normal/i );
 			print "Final2:Tumor->$file\nNormal->$normal\n\n";
-			my ($tFileId)   = $file =~ /(.*)_$poolName\_/;
+			my ($tFileId)   = $file   =~ /(.*)_$poolName\_/;
 			my ($nPoolName) = $normal =~ /.*_bc\d+_(.*)_L\d{1,3}.*/;
 			my ($nFileId)   = $normal =~ /(.*)_$nPoolName\_/;
 			$NormalPerFile{$tFileId} = $nFileId;
 			( $waitFileNames, $svOutdir ) =
 			  &RunDelly( $normal, $file, $nFileId, $tFileId, $outdir, $count );
 
-			foreach my $waitName (@$waitFileNames)
-			{
+			foreach my $waitName (@$waitFileNames) {
 				push( @notifyNames, $waitName );
 			}
 			push( @FilterData, "$svOutdir,$nFileId,$tFileId" );
@@ -2364,25 +2191,25 @@ sub CallStructuralVariants
 	&WaitToFinish( $outdir, @notifyNames );
 	open( NFH, ">", "$outdir/$NormalUsed" )
 	  || die "Cannot open NormalUsedinSVFile:$outdir/$NormalUsed;$!\n";
-	while ( my ( $key, $value ) = each(%NormalPerFile) )
-	{
+	while ( my ( $key, $value ) = each(%NormalPerFile) ) {
 		print NFH "$key\t$value\n";
 	}
 	close(NFH);
 	$now = time - $now;
 	print "Finished running Germline and Somatic Variant jobs on SGE at "
 	  . localtime() . "\n";
-	printf( "Total running time: %02d:%02d:%02d\n\n",
-			int( $now / 3600 ),
-			int( ( $now % 3600 ) / 60 ),
-			int( $now % 60 ) );
+	printf(
+		"Total running time: %02d:%02d:%02d\n\n",
+		int( $now / 3600 ),
+		int( ( $now % 3600 ) / 60 ),
+		int( $now % 60 )
+	);
 	return ( \@names, \@FilterData );
 }
 #######################################
 #######################################
 #Run Delly
-sub RunDelly
-{
+sub RunDelly {
 	my ( $normal, $tumor, $nId, $tId, $outdir, $count ) = @_;
 	my @waitFilenames     = ();
 	my $date              = `date "+%Y%m%d"`;
@@ -2392,13 +2219,11 @@ sub RunDelly
 
 	#my $stdNormals = join( " ", @$stdNormalsList );
 	#Make Ouput dir
-	if ( !( -d "$dellyOutdir" ) )
-	{
+	if ( !( -d "$dellyOutdir" ) ) {
 		`mkdir $dellyOutdir`;
-	} else
-	{
-		if ( $count == 0 )
-		{
+	}
+	else {
+		if ( $count == 0 ) {
 			warn "$dellyOutdir exists !!\n";
 		}
 	}
@@ -2416,12 +2241,11 @@ sub RunDelly
 	my ($lnTumorBai) = $lnTumor . ".bai";
 
 	#Make Tumor Sample Output Dir
-	if ( -d "$sampleTumorOutput" )
-	{
+	if ( -d "$sampleTumorOutput" ) {
 		warn "$sampleTumorOutput exists !!\n";
 		$tFlag = 1;
-	} else
-	{
+	}
+	else {
 		`mkdir $sampleTumorOutput`;
 		`ln -s $outdir/$tumor $sampleTumorOutput/`;
 		`ln -s $outdir/$normal $sampleTumorOutput/`;
@@ -2497,37 +2321,35 @@ sub RunDelly
 	my $notifyT_stderr = $notifyT_jname . ".stderr";
 
 	#Launch only if folder does not exists
-	if ( $tFlag == 2 )
-	{
-		if ( $CLUSTER eq "SGE" )
-		{
+	if ( $tFlag == 2 ) {
+		if ( $CLUSTER eq "SGE" ) {
 			&launchQsub(
-						 $dellyT_cmd,    $sampleTumorOutput,
-						 "8G",           $dellyT_stdout,
-						 $dellyT_stderr, "2",
-						 $runQueue,      $dellyT_jname,
-						 "Null"
+				$dellyT_cmd,    $sampleTumorOutput,
+				"8G",           $dellyT_stdout,
+				$dellyT_stderr, "2",
+				$runQueue,      $dellyT_jname,
+				"Null"
 			);
 			&launchQsub(
-						 $duppyT_cmd,    $sampleTumorOutput,
-						 "8G",           $duppyT_stdout,
-						 $duppyT_stderr, "2",
-						 $runQueue,      $duppyT_jname,
-						 "Null"
+				$duppyT_cmd,    $sampleTumorOutput,
+				"8G",           $duppyT_stdout,
+				$duppyT_stderr, "2",
+				$runQueue,      $duppyT_jname,
+				"Null"
 			);
 			&launchQsub(
-						 $invyT_cmd,    $sampleTumorOutput,
-						 "8G",          $invyT_stdout,
-						 $invyT_stderr, "2",
-						 $runQueue,     $invyT_jname,
-						 "Null"
+				$invyT_cmd,    $sampleTumorOutput,
+				"8G",          $invyT_stdout,
+				$invyT_stderr, "2",
+				$runQueue,     $invyT_jname,
+				"Null"
 			);
 			&launchQsub(
-						 $jumpyT_cmd,    $sampleTumorOutput,
-						 "8G",           $jumpyT_stdout,
-						 $jumpyT_stderr, "2",
-						 $runQueue,      $jumpyT_jname,
-						 "Null"
+				$jumpyT_cmd,    $sampleTumorOutput,
+				"8G",           $jumpyT_stdout,
+				$jumpyT_stderr, "2",
+				$runQueue,      $jumpyT_jname,
+				"Null"
 			);
 
 			#&launchQsub(
@@ -2538,41 +2360,41 @@ sub RunDelly
 			#	"Null"
 			#);
 			&launchQsub(
-						 $notify_cmd,     $outdir,
-						 "2G",            $notifyT_stdout,
-						 $notifyT_stderr, "1",
-						 $runQueue,       $notifyT_jname,
-						 $notifyT_hjname
+				$notify_cmd,     $outdir,
+				"2G",            $notifyT_stdout,
+				$notifyT_stderr, "1",
+				$runQueue,       $notifyT_jname,
+				$notifyT_hjname
 			);
-		} else
-		{
+		}
+		else {
 			&launchBsub(
-						 $dellyT_cmd,    $sampleTumorOutput,
-						 "8G",           $dellyT_stdout,
-						 $dellyT_stderr, "2",
-						 $runQueue,      $dellyT_jname,
-						 "Null"
-			);
-			&launchBsub(
-						 $duppyT_cmd,    $sampleTumorOutput,
-						 "8G",           $duppyT_stdout,
-						 $duppyT_stderr, "2",
-						 $runQueue,      $duppyT_jname,
-						 "Null"
+				$dellyT_cmd,    $sampleTumorOutput,
+				"8G",           $dellyT_stdout,
+				$dellyT_stderr, "2",
+				$runQueue,      $dellyT_jname,
+				"Null"
 			);
 			&launchBsub(
-						 $invyT_cmd,    $sampleTumorOutput,
-						 "8G",          $invyT_stdout,
-						 $invyT_stderr, "2",
-						 $runQueue,     $invyT_jname,
-						 "Null"
+				$duppyT_cmd,    $sampleTumorOutput,
+				"8G",           $duppyT_stdout,
+				$duppyT_stderr, "2",
+				$runQueue,      $duppyT_jname,
+				"Null"
 			);
 			&launchBsub(
-						 $jumpyT_cmd,    $sampleTumorOutput,
-						 "8G",           $jumpyT_stdout,
-						 $jumpyT_stderr, "2",
-						 $runQueue,      $jumpyT_jname,
-						 "Null"
+				$invyT_cmd,    $sampleTumorOutput,
+				"8G",          $invyT_stdout,
+				$invyT_stderr, "2",
+				$runQueue,     $invyT_jname,
+				"Null"
+			);
+			&launchBsub(
+				$jumpyT_cmd,    $sampleTumorOutput,
+				"8G",           $jumpyT_stdout,
+				$jumpyT_stderr, "2",
+				$runQueue,      $jumpyT_jname,
+				"Null"
 			);
 
 			#&launchQsub(
@@ -2583,16 +2405,16 @@ sub RunDelly
 			#	"Null"
 			#);
 			&launchBsub(
-						 $notify_cmd,     $outdir,
-						 "2G",            $notifyT_stdout,
-						 $notifyT_stderr, "1",
-						 $runQueue,       $notifyT_jname,
-						 $notifyT_hjname
+				$notify_cmd,     $outdir,
+				"2G",            $notifyT_stdout,
+				$notifyT_stderr, "1",
+				$runQueue,       $notifyT_jname,
+				$notifyT_hjname
 			);
 		}
 		push( @waitFilenames, $notifyT_stdout );
-	} else
-	{
+	}
+	else {
 		print
 		  "Resuts for Tumor:$tId sample exists. Thus Delly would not be ran\n";
 		push( @waitFilenames, "NULL" );
@@ -2603,8 +2425,7 @@ sub RunDelly
 #####################################
 #This will help to Call Filter
 #SV module
-sub FilterStructuralVariants
-{
+sub FilterStructuralVariants {
 	my ($filenames) = @_;
 	my $now = time;
 	my @names;
@@ -2615,26 +2436,24 @@ sub FilterStructuralVariants
 
 	#print "F:$fof\n";
 	my $NormalUsed = $poolName . "_NormalUsedInSVcalling.txt";
-	if ( ( scalar(@names) == 0 ) and ($fof) )
-	{
+	if ( ( scalar(@names) == 0 ) and ($fof) ) {
 		@names = &GetNames( $fof, $outdir );
 	}
 	open( NFH, "$outdir/$NormalUsed" )
 	  || die "Cannot open NormalUsedinSVFile:$outdir/$NormalUsed;$!\n";
-	while (<NFH>)
-	{
+	while (<NFH>) {
 		chomp;
 		my ( $tumorId, $normalId ) = split( "\t", $_ );
 		my $dellyOutdir       = $outdir . "/StrVarAnalysis";
 		my $sampleTumorOutput = $dellyOutdir . "/" . $tumorId;
 		my $entry             = "$sampleTumorOutput,$normalId,$tumorId";
 		my (
-			 $waitFileName, $delFilterVcf, $dupFilterVcf,
-			 $invFilterVcf, $jmpOutFile
+			$waitFileName, $delFilterVcf, $dupFilterVcf,
+			$invFilterVcf, $jmpOutFile
 		) = RunFilterStructuralVariants( $outdir, $entry, $count );
 		my ( $svOutdir, $nFileId, $tFileId ) = split( ",", $entry );
 		push( @somaticSVfiles,
-			  "$entry,$delFilterVcf,$dupFilterVcf,$invFilterVcf,$jmpOutFile" );
+			"$entry,$delFilterVcf,$dupFilterVcf,$invFilterVcf,$jmpOutFile" );
 		push( @notifyNames, $waitFileName );
 		$count++;
 	}
@@ -2642,50 +2461,47 @@ sub FilterStructuralVariants
 	&WaitToFinish( $outdir, @notifyNames );
 	$now = time - $now;
 	print "Finished Filtering Variant jobs on SGE at " . localtime() . "\n";
-	printf( "Total running time: %02d:%02d:%02d\n\n",
-			int( $now / 3600 ),
-			int( ( $now % 3600 ) / 60 ),
-			int( $now % 60 ) );
+	printf(
+		"Total running time: %02d:%02d:%02d\n\n",
+		int( $now / 3600 ),
+		int( ( $now % 3600 ) / 60 ),
+		int( $now % 60 )
+	);
 	return ( \@names, \@somaticSVfiles );
 }
 #######################################
 #######################################
 #Run the the cmd as qsub
-sub launchQsub
-{
+sub launchQsub {
 	my (
-		 $cmd,        $outdir, $mem,     $stdout, $stderr,
-		 $processors, $queue,  $jobname, $holdjobname
+		$cmd,        $outdir, $mem,     $stdout, $stderr,
+		$processors, $queue,  $jobname, $holdjobname
 	) = @_;
 	my $qcmd = "";
 
 	#Run Job with hold job id
-	if ( $holdjobname ne "Null" )
-	{
+	if ( $holdjobname ne "Null" ) {
 		$qcmd =
 "$QSUB -q $queue -V -v OMP_NUM_THREADS=2 -wd $outdir -hold_jid $holdjobname -N $jobname -o $stdout -e $stderr -l h_vmem=$mem,virtual_free=$mem -pe smp $processors -b y $cmd";
 		eval {
 			print "CMD:$qcmd\n";
 			`$qcmd`;
 		};
-		if ($@)
-		{
+		if ($@) {
 			print "Problem Sumitting the Qusb Command.Error: $@\n";
 			exit(1);
 		}
 	}
 
 	#Run Jobs without hold job Id
-	if ( $holdjobname eq "Null" )
-	{
+	if ( $holdjobname eq "Null" ) {
 		$qcmd =
 "$QSUB -q $queue -V -v OMP_NUM_THREADS=2 -wd $outdir -N $jobname -o $stdout -e $stderr -l h_vmem=$mem,virtual_free=$mem -pe smp $processors -b y $cmd";
 		eval {
 			print "CMD:$qcmd\n";
 			`$qcmd`;
 		};
-		if ($@)
-		{
+		if ($@) {
 			print "Problem Sumitting the Qusb Command.Error: $@\n";
 			exit(1);
 		}
@@ -2695,41 +2511,36 @@ sub launchQsub
 #######################################
 #######################################
 #Run the the cmd as bsub
-sub launchBsub
-{
+sub launchBsub {
 	my (
-		 $cmd,        $outdir, $mem,     $stdout, $stderr,
-		 $processors, $queue,  $jobname, $holdjobname
+		$cmd,        $outdir, $mem,     $stdout, $stderr,
+		$processors, $queue,  $jobname, $holdjobname
 	) = @_;
 	my $bcmd = "";
 
 	#Run Job with hold job id
-	if ( $holdjobname ne "Null" )
-	{
+	if ( $holdjobname ne "Null" ) {
 		$bcmd =
 "$BSUB -q $queue -cwd $outdir -w \"post_done($holdjobname)\" -J $jobname -o $stdout -e $stderr -We 24:00 -R \"rusage[mem=$mem]\" -M $mem+5 -n $processors \"$cmd\"";
 		eval {
 			print "CMD:$bcmd\n";
 			`$bcmd`;
 		};
-		if ($@)
-		{
+		if ($@) {
 			print "Problem Sumitting the Busb Command.Error: $@\n";
 			exit(1);
 		}
 	}
 
 	#Run Jobs without hold job Id
-	if ( $holdjobname eq "Null" )
-	{
+	if ( $holdjobname eq "Null" ) {
 		$bcmd =
 "$BSUB -q $queue -cwd $outdir -J $jobname -o $stdout -e $stderr -R \"rusage[mem=$mem]\" -M $mem+5 -n $processors \"$cmd\"";
 		eval {
 			print "CMD:$bcmd\n";
 			`$bcmd`;
 		};
-		if ($@)
-		{
+		if ($@) {
 			print "Problem Sumitting the Busb Command.Error: $@\n";
 			exit(1);
 		}
@@ -2740,8 +2551,7 @@ sub launchBsub
 #####################################
 #This will help to Filter:
 #Somatic SVs
-sub RunFilterStructuralVariants
-{
+sub RunFilterStructuralVariants {
 	my ( $outdir, $entry, $count ) = @_;
 	my ( $svOutdir, $nFileId, $tFileId ) = split( ",", $entry );
 	my $id           = basename($svOutdir);
@@ -2794,52 +2604,90 @@ sub RunFilterStructuralVariants
 	my $notifyT_jname  = "NotifyFilter.$tFileId.$$.$count";
 	my $notifyT_stdout = $notifyT_jname . ".stat";
 	my $notifyT_stderr = $notifyT_jname . ".stderr";
-	&launchQsub(
-				 $delcmd,           $svOutdir,
-				 "10G",             $delFilter_stdout,
-				 $delFilter_stderr, "1",
-				 $runQueue,         $delFilter_jname,
-				 "Null"
-	);
-	&launchQsub(
-				 $dupcmd,           $svOutdir,
-				 "10G",             $dupFilter_stdout,
-				 $dupFilter_stderr, "1",
-				 $runQueue,         $dupFilter_jname,
-				 "Null"
-	);
-	&launchQsub(
-				 $invcmd,           $svOutdir,
-				 "10G",             $invFilter_stdout,
-				 $invFilter_stderr, "1",
-				 $runQueue,         $invFilter_jname,
-				 "Null"
-	);
-	&launchQsub(
-				 $jmpcmd,           $svOutdir,
-				 "10G",             $jmpFilter_stdout,
-				 $jmpFilter_stderr, "1",
-				 $runQueue,         $jmpFilter_jname,
-				 "Null"
-	);
-	&launchQsub(
-				 $notify_cmd,     $outdir,
-				 "2G",            $notifyT_stdout,
-				 $notifyT_stderr, "1",
-				 $runQueue,       $notifyT_jname,
-				 $notifyT_hjname
-	);
+	if ( $CLUSTER eq "SGE" ) {
+		&launchQsub(
+			$delcmd,           $svOutdir,
+			"10G",             $delFilter_stdout,
+			$delFilter_stderr, "1",
+			$runQueue,         $delFilter_jname,
+			"Null"
+		);
+		&launchQsub(
+			$dupcmd,           $svOutdir,
+			"10G",             $dupFilter_stdout,
+			$dupFilter_stderr, "1",
+			$runQueue,         $dupFilter_jname,
+			"Null"
+		);
+		&launchQsub(
+			$invcmd,           $svOutdir,
+			"10G",             $invFilter_stdout,
+			$invFilter_stderr, "1",
+			$runQueue,         $invFilter_jname,
+			"Null"
+		);
+		&launchQsub(
+			$jmpcmd,           $svOutdir,
+			"10G",             $jmpFilter_stdout,
+			$jmpFilter_stderr, "1",
+			$runQueue,         $jmpFilter_jname,
+			"Null"
+		);
+		&launchQsub(
+			$notify_cmd,     $outdir,
+			"2G",            $notifyT_stdout,
+			$notifyT_stderr, "1",
+			$runQueue,       $notifyT_jname,
+			$notifyT_hjname
+		);
+	}
+	else {
+		&launchBsub(
+			$delcmd,           $svOutdir,
+			"10G",             $delFilter_stdout,
+			$delFilter_stderr, "1",
+			$runQueue,         $delFilter_jname,
+			"Null"
+		);
+		&launchBsub(
+			$dupcmd,           $svOutdir,
+			"10G",             $dupFilter_stdout,
+			$dupFilter_stderr, "1",
+			$runQueue,         $dupFilter_jname,
+			"Null"
+		);
+		&launchBsub(
+			$invcmd,           $svOutdir,
+			"10G",             $invFilter_stdout,
+			$invFilter_stderr, "1",
+			$runQueue,         $invFilter_jname,
+			"Null"
+		);
+		&launchBsub(
+			$jmpcmd,           $svOutdir,
+			"10G",             $jmpFilter_stdout,
+			$jmpFilter_stderr, "1",
+			$runQueue,         $jmpFilter_jname,
+			"Null"
+		);
+		&launchBsub(
+			$notify_cmd,     $outdir,
+			"2G",            $notifyT_stdout,
+			$notifyT_stderr, "1",
+			$runQueue,       $notifyT_jname,
+			$notifyT_hjname
+		);
+	}
 	return (
-			 $notifyT_stdout, $delFilterVcf, $dupFilterVcf,
-			 $invFilterVcf,   $jmpFilterVcf
+		$notifyT_stdout, $delFilterVcf, $dupFilterVcf,
+		$invFilterVcf,   $jmpFilterVcf
 	);
 }
 #####################################
 #####################################
 #This will help to Annotate:
 #Somatic SVs
-sub AnnotateStructuralVariants
-{
+sub AnnotateStructuralVariants {
 	my ( $filenames, $output ) = @_;
 	my $now = time;
 	my @names;
@@ -2849,14 +2697,12 @@ sub AnnotateStructuralVariants
 	if ($filenames) { (@names) = @$filenames; }
 	my $NormalUsed = $poolName . "_NormalUsedInSVcalling.txt";
 
-	if ( ( scalar(@names) == 0 ) and ($fof) )
-	{
+	if ( ( scalar(@names) == 0 ) and ($fof) ) {
 		@names = &GetNames( $fof, $outdir );
 	}
 	open( NFH, "$outdir/$NormalUsed" )
 	  || die "Cannot open NormalUsedinSVFile:$outdir/$NormalUsed;$!\n";
-	while (<NFH>)
-	{
+	while (<NFH>) {
 		chomp;
 		my ( $tumorId, $normalId ) = split( "\t", $_ );
 		my $dellyOutdir       = $outdir . "/StrVarAnalysis";
@@ -2888,35 +2734,50 @@ sub AnnotateStructuralVariants
 	my $notify_jname  = "NotifyAnnotateSv.$$";
 	my $notify_stdout = $notify_jname . ".stat";
 	my $notify_stderr = $notify_jname . ".stderr";
-	&launchQsub(
-				 $annotate_cmd,    $outdir,
-				 "2G",             $annotate_stdout,
-				 $annotate_stderr, "1",
-				 $queue,           $annotate_jname,
-				 "Null"
-	);
-	&launchQsub(
-				 $notify_cmd,    $outdir,
-				 "2G",           $notify_stdout,
-				 $notify_stderr, "1",
-				 $queue,         $notify_jname,
-				 $notify_hjname
-	);
+	if ( $CLUSTER eq "SGE" ) {
+		&launchQsub(
+			$annotate_cmd,    $outdir,
+			"2G",             $annotate_stdout,
+			$annotate_stderr, "1",
+			$queue,           $annotate_jname,
+			"Null"
+		);
+		&launchQsub(
+			$notify_cmd,    $outdir, "2G",   $notify_stdout,
+			$notify_stderr, "1",     $queue, $notify_jname,
+			$notify_hjname
+		);
+	}
+	else {
+		&launchBsub(
+			$annotate_cmd,    $outdir,
+			"2G",             $annotate_stdout,
+			$annotate_stderr, "1",
+			$queue,           $annotate_jname,
+			"Null"
+		);
+		&launchBsub(
+			$notify_cmd,    $outdir, "2G",   $notify_stdout,
+			$notify_stderr, "1",     $queue, $notify_jname,
+			$notify_hjname
+		);
+	}
 	push( @notifyNames, $notify_stdout );
 	&WaitToFinish( $outdir, @notifyNames );
 	$now = time - $now;
 	print "Finished Filtering Variant jobs on SGE at " . localtime() . "\n";
-	printf( "Total running time: %02d:%02d:%02d\n\n",
-			int( $now / 3600 ),
-			int( ( $now % 3600 ) / 60 ),
-			int( $now % 60 ) );
+	printf(
+		"Total running time: %02d:%02d:%02d\n\n",
+		int( $now / 3600 ),
+		int( ( $now % 3600 ) / 60 ),
+		int( $now % 60 )
+	);
 	return ( \@names, \@AnnoSVfiles );
 }
 #####################################
 #####################################
 #MergeVCF CTX & dRangerAnnotation
-sub MergeAllFiles
-{
+sub MergeAllFiles {
 	my ($annoFiles) = @_;
 	my @AnnoFiles   = @$annoFiles;
 	my $NormalUsed  = $poolName . "_NormalUsedInSVcalling.txt";
@@ -2927,8 +2788,7 @@ sub MergeAllFiles
 	  || die "Cannot open $outdir/$outFile;$!\n";
 	print OFH
 "TumorId\tNormalId\tChr1\tPos1\tChr2\tPos2\tSV_Type\tGene1\tGene2\tTranscript1\tTranscript2\tSite1Description\tSite2Description\tFusion\tConfidence\tComments\tConnection_Type\tSV_LENGTH\tMAPQ\tPairEndReadSupport\tSplitReadSupport\tBrkptType\tConsensusSequence\tTumorVariantCount\tTumorSplitVariantCount\tTumorReadCount\tTumorGenotypeQScore\tNormalVariantCount\tNormalSplitVariantCount\tNormalReadCount\tNormalGenotypeQScore\n";
-	while (<NFH>)
-	{
+	while (<NFH>) {
 		chomp;
 		my ( $tumorId, $normalId ) = split( "\t", $_ );
 		my $dellyOutdir       = $outdir . "/StrVarAnalysis";
@@ -2946,95 +2806,87 @@ sub MergeAllFiles
 		#Merge VCF to dRanger
 		my $delData =
 		  MergeVCFwithdRanger( $sampleTumorOutput, $delOut, $delAnnoOut,
-							   $tumorId, $normalId );
+			$tumorId, $normalId );
 		my $dupData =
 		  MergeVCFwithdRanger( $sampleTumorOutput, $dupOut, $dupAnnoOut,
-							   $tumorId, $normalId );
+			$tumorId, $normalId );
 		my $invData =
 		  MergeVCFwithdRanger( $sampleTumorOutput, $invOut, $invAnnoOut,
-							   $tumorId, $normalId );
+			$tumorId, $normalId );
 		my $jmpData =
 		  MergeVCFwithdRanger( $sampleTumorOutput, $jmpOut, $jmpAnnoOut,
-							   $tumorId, $normalId );
-		if ( $delData ne "Null" )
-		{
+			$tumorId, $normalId );
+		if ( $delData ne "Null" ) {
 			tie( my %delHash, 'Tie::IxHash' );
 			%delHash = %$delData;
-			foreach my $record ( sort keys %delHash )
-			{
+			foreach my $record ( sort keys %delHash ) {
 				my ( $chr1, $pos1, $chr2, $pos2 ) = split( ":", $record );
 				my (
-					 $svType,      $gene1,       $gene2,
-					 $transcript1, $transcript2, $site1,
-					 $site2,       $fusion,      $connectionType,
-					 $svlen,       $mapq,        $peReads,
-					 $srReads,     $bkptType,    $consensusSeq,
-					 $tDV,         $tRV,         $tRC,
-					 $tGQ,         $nDV,         $nRV,
-					 $nRC,         $nGQ
+					$svType,      $gene1,       $gene2,
+					$transcript1, $transcript2, $site1,
+					$site2,       $fusion,      $connectionType,
+					$svlen,       $mapq,        $peReads,
+					$srReads,     $bkptType,    $consensusSeq,
+					$tDV,         $tRV,         $tRC,
+					$tGQ,         $nDV,         $nRV,
+					$nRC,         $nGQ
 				) = split( ";", $delHash{$record} );
 				print OFH
 "$tumorId\t$normalId\t$chr1\t$pos1\t$chr2\t$pos2\t$svType\t$gene1\t$gene2\t$transcript1\t$transcript2\t$site1\t$site2\t$fusion\t\t\t$connectionType\t$svlen\t$mapq\t$peReads\t$srReads\t$bkptType\t$consensusSeq\t$tDV\t$tRV\t$tRC\t$tGQ\t$nDV\t$nRV\t$nRC\t$nGQ\n";
 			}
 		}
-		if ( $dupData ne "Null" )
-		{
+		if ( $dupData ne "Null" ) {
 			tie( my %dupHash, 'Tie::IxHash' );
 			%dupHash = %$dupData;
-			foreach my $record ( sort keys %dupHash )
-			{
+			foreach my $record ( sort keys %dupHash ) {
 				my ( $chr1, $pos1, $chr2, $pos2 ) = split( ":", $record );
 				my (
-					 $svType,      $gene1,       $gene2,
-					 $transcript1, $transcript2, $site1,
-					 $site2,       $fusion,      $connectionType,
-					 $svlen,       $mapq,        $peReads,
-					 $srReads,     $bkptType,    $consensusSeq,
-					 $tDV,         $tRV,         $tRC,
-					 $tGQ,         $nDV,         $nRV,
-					 $nRC,         $nGQ
+					$svType,      $gene1,       $gene2,
+					$transcript1, $transcript2, $site1,
+					$site2,       $fusion,      $connectionType,
+					$svlen,       $mapq,        $peReads,
+					$srReads,     $bkptType,    $consensusSeq,
+					$tDV,         $tRV,         $tRC,
+					$tGQ,         $nDV,         $nRV,
+					$nRC,         $nGQ
 				) = split( ";", $dupHash{$record} );
 				print OFH
 "$tumorId\t$normalId\t$chr1\t$pos1\t$chr2\t$pos2\t$svType\t$gene1\t$gene2\t$transcript1\t$transcript2\t$site1\t$site2\t$fusion\t\t\t$connectionType\t$svlen\t$mapq\t$peReads\t$srReads\t$bkptType\t$consensusSeq\t$tDV\t$tRV\t$tRC\t$tGQ\t$nDV\t$nRV\t$nRC\t$nGQ\n";
 			}
 		}
-		if ( $invData ne "Null" )
-		{
+		if ( $invData ne "Null" ) {
 			tie( my %invHash, 'Tie::IxHash' );
 			%invHash = %$invData;
-			foreach my $record ( sort keys %invHash )
-			{
+			foreach my $record ( sort keys %invHash ) {
 				my ( $chr1, $pos1, $chr2, $pos2 ) = split( ":", $record );
 				my (
-					 $svType,      $gene1,       $gene2,
-					 $transcript1, $transcript2, $site1,
-					 $site2,       $fusion,      $connectionType,
-					 $svlen,       $mapq,        $peReads,
-					 $srReads,     $bkptType,    $consensusSeq,
-					 $tDV,         $tRV,         $tRC,
-					 $tGQ,         $nDV,         $nRV,
-					 $nRC,         $nGQ
+					$svType,      $gene1,       $gene2,
+					$transcript1, $transcript2, $site1,
+					$site2,       $fusion,      $connectionType,
+					$svlen,       $mapq,        $peReads,
+					$srReads,     $bkptType,    $consensusSeq,
+					$tDV,         $tRV,         $tRC,
+					$tGQ,         $nDV,         $nRV,
+					$nRC,         $nGQ
 				) = split( ";", $invHash{$record} );
 				print OFH
 "$tumorId\t$normalId\t$chr1\t$pos1\t$chr2\t$pos2\t$svType\t$gene1\t$gene2\t$transcript1\t$transcript2\t$site1\t$site2\t$fusion\t\t\t$connectionType\t$svlen\t$mapq\t$peReads\t$srReads\t$bkptType\t$consensusSeq\t$tDV\t$tRV\t$tRC\t$tGQ\t$nDV\t$nRV\t$nRC\t$nGQ\n";
 			}
 		}
-		if ( $jmpData ne "Null" )
-		{
+		if ( $jmpData ne "Null" ) {
 			tie( my %jmpHash, 'Tie::IxHash' );
 			%jmpHash = %$jmpData;
-			foreach my $record ( sort keys %jmpHash )
-			{
+			foreach my $record ( sort keys %jmpHash ) {
 				my ( $chr1, $pos1, $chr2, $pos2 ) = split( ":", $record );
 				my (
-					 $svType,      $gene1,       $gene2,
-					 $transcript1, $transcript2, $site1,
-					 $site2,       $fusion,      $connectionType,
-					 $svlen,       $mapq,        $peReads,
-					 $srReads,     $bkptType,    $consensusSeq,
-					 $tDV,         $tRV,         $tRC,
-					 $tGQ,         $nDV,         $nRV,
-					 $nRC,         $nGQ
+					$svType,      $gene1,       $gene2,
+					$transcript1, $transcript2, $site1,
+					$site2,       $fusion,      $connectionType,
+					$svlen,       $mapq,        $peReads,
+					$srReads,     $bkptType,    $consensusSeq,
+					$tDV,         $tRV,         $tRC,
+					$tGQ,         $nDV,         $nRV,
+					$nRC,         $nGQ
 				) = split( ";", $jmpHash{$record} );
 				print OFH
 "$tumorId\t$normalId\t$chr1\t$pos1\t$chr2\t$pos2\t$svType\t$gene1\t$gene2\t$transcript1\t$transcript2\t$site1\t$site2\t$fusion\t\t\t$connectionType\t$svlen\t$mapq\t$peReads\t$srReads\t$bkptType\t$consensusSeq\t$tDV\t$tRV\t$tRC\t$tGQ\t$nDV\t$nRV\t$nRC\t$nGQ\n";
@@ -3048,17 +2900,14 @@ sub MergeAllFiles
 #####################################
 #####################################
 #MergeVCF & dRangerAnnotation
-sub MergeVCFwithdRanger
-{
+sub MergeVCFwithdRanger {
 	my ( $svOutdir, $vcf, $file, $tumorId, $normalId ) = @_;
 	tie( my %outHash, 'Tie::IxHash' );
 	my $tag = CheckIfFileHasContent( $svOutdir, $file );
-	if ( $tag == 1 )
-	{
+	if ( $tag == 1 ) {
 		my %dRangerData = &Read_dRangerOut( $svOutdir, $file );
 		my %vcfData = &Read_VCFout( $svOutdir, $vcf, $tumorId, $normalId );
-		foreach my $key ( sort keys %vcfData )
-		{
+		foreach my $key ( sort keys %vcfData ) {
 			my $vcfValue    = $vcfData{$key};
 			my $dRangeValue = $dRangerData{$key};
 
@@ -3066,23 +2915,23 @@ sub MergeVCFwithdRanger
 			my ( $chr1, $pos1, $sstr1, $chr2, $pos2, $sstr2 ) =
 			  split( ":", $key );
 			my (
-				 $str1,  $str2,        $gene1,
-				 $gene2, $transcript1, $transcript2,
-				 $site1, $site2,       $fusion
+				$str1,  $str2,        $gene1,
+				$gene2, $transcript1, $transcript2,
+				$site1, $site2,       $fusion
 			) = split( ";", $dRangeValue );
 			my (
-				 $svlen,   $mapq,           $svType,   $peReads,
-				 $srReads, $connectionType, $bkptType, $consensusSeq,
-				 $tGQ,     $tFT,            $tRC,      $tDR,
-				 $tDV,     $tRR,            $tRV,      $nGQ,
-				 $nFT,     $nRC,            $nDR,      $nDV,
-				 $nRR,     $nRV
+				$svlen,   $mapq,           $svType,   $peReads,
+				$srReads, $connectionType, $bkptType, $consensusSeq,
+				$tGQ,     $tFT,            $tRC,      $tDR,
+				$tDV,     $tRR,            $tRV,      $nGQ,
+				$nFT,     $nRC,            $nDR,      $nDV,
+				$nRR,     $nRV
 			) = split( ";", $vcfValue );
 			$outHash{$key} =
 "$svType;$gene1;$gene2;$transcript1;$transcript2;$site1;$site2;$fusion;$connectionType;$svlen;$mapq;$peReads;$srReads;$bkptType;$consensusSeq;$tDV;$tRV;$tRC;$tGQ;$nDV;$nRV;$nRC;$nGQ";
 		}
-	} else
-	{
+	}
+	else {
 		return ("Null");
 	}
 	return ( \%outHash );
@@ -3090,33 +2939,30 @@ sub MergeVCFwithdRanger
 #####################################
 #####################################
 #MergeVCF & dRangerAnnotation
-sub MergeCTXwithdRanger
-{
+sub MergeCTXwithdRanger {
 	my ( $svOutdir, $jmp, $file, $tumorId, $normalId ) = @_;
 	tie( my %outHash, 'Tie::IxHash' );
 	my $tag = CheckIfFileHasContent( $svOutdir, $file );
-	if ( $tag == 1 )
-	{
+	if ( $tag == 1 ) {
 		my %dRangerData = &Read_dRangerOut( $svOutdir, $file );
 		my %ctxData = &Read_CTXout( $svOutdir, $jmp );
-		foreach my $key ( sort keys %ctxData )
-		{
+		foreach my $key ( sort keys %ctxData ) {
 			my ( $chr1, $pos1, $chr2, $pos2 ) = split( ":", $key );
 			my (
-				 $str1,  $str2,        $gene1,
-				 $gene2, $transcript1, $transcript2,
-				 $site1, $site2,       $fusion
+				$str1,  $str2,        $gene1,
+				$gene2, $transcript1, $transcript2,
+				$site1, $site2,       $fusion
 			) = split( ":", $dRangerData{$key} );
 			my (
-				 $Direction,    $TumorPE,    $TumorSR,    $TumorMAPQ,
-				 $CanBeSomatic, $NormalPos1, $NormalPos2, $NormalPE,
-				 $NormalSR,     $NormalMAPQ
+				$Direction,    $TumorPE,    $TumorSR,    $TumorMAPQ,
+				$CanBeSomatic, $NormalPos1, $NormalPos2, $NormalPE,
+				$NormalSR,     $NormalMAPQ
 			) = split( ":", $ctxData{$key} );
 			$outHash{$key} =
 "CTX;$gene1;$gene2;$transcript1;$transcript2;$site1;$site2;$fusion;$Direction;-;$TumorMAPQ;$TumorPE;$TumorSR;-;-;-;$NormalPE;-;-";
 		}
-	} else
-	{
+	}
+	else {
 		return ("Null");
 	}
 	return ( \%outHash );
@@ -3124,20 +2970,18 @@ sub MergeCTXwithdRanger
 #####################################
 #####################################
 #Read dRanger Annotation & store them as hash
-sub Read_dRangerOut
-{
+sub Read_dRangerOut {
 	my ( $dir, $file ) = @_;
 	my %outHash = ();
 	open( DFH, "$dir/$file" ) || die "Cannot open file $dir/$file, Error:$!\n";
-	while (<DFH>)
-	{
+	while (<DFH>) {
 		chomp;
 		next if ( $. == 1 );
 		my (
-			 $chr1,        $pos1,  $str1,  $chr2,
-			 $pos2,        $str2,  $gene1, $site1,
-			 $transcript1, $gene2, $site2, $transcript2,
-			 $fusion
+			$chr1,        $pos1,  $str1,  $chr2,
+			$pos2,        $str2,  $gene1, $site1,
+			$transcript1, $gene2, $site2, $transcript2,
+			$fusion
 		) = split( "\t", $_ );
 		$chr1 = "X" if ( $chr1 == 23 );
 		$chr2 = "X" if ( $chr2 == 23 );
@@ -3152,20 +2996,18 @@ sub Read_dRangerOut
 #####################################
 #####################################
 #Read  vcf & store them as hash
-sub Read_CTXout
-{
+sub Read_CTXout {
 	my ( $dir, $file ) = @_;
 	my %outHash = ();
 	open( FH, "$dir/$file" ) || die "Cannot Open $dir/$file. Error:$!\n";
-	while (<FH>)
-	{
+	while (<FH>) {
 		chomp;
 		next if ( $. == 1 );
 		my (
-			 $Chr1,         $TumorPos1,  $Chr2,       $TumorPos2,
-			 $Direction,    $TumorPE,    $TumorSR,    $TumorMAPQ,
-			 $CanBeSomatic, $NormalPos1, $NormalPos2, $NormalPE,
-			 $NormalSR,     $NormalMAPQ
+			$Chr1,         $TumorPos1,  $Chr2,       $TumorPos2,
+			$Direction,    $TumorPE,    $TumorSR,    $TumorMAPQ,
+			$CanBeSomatic, $NormalPos1, $NormalPos2, $NormalPE,
+			$NormalSR,     $NormalMAPQ
 		) = split( "\t", $_ );
 		$outHash{"$Chr1:$TumorPos1:$Chr2:$TumorPos2"} =
 "$Direction;$TumorPE;$TumorSR;$TumorMAPQ;$CanBeSomatic;$NormalPos1;$NormalPos2;$NormalPE;$NormalSR;$NormalMAPQ";
@@ -3176,57 +3018,48 @@ sub Read_CTXout
 #####################################
 #####################################
 #Read  vcf & store them as hash
-sub Read_VCFout
-{
+sub Read_VCFout {
 	my ( $dir, $vcf, $tumorId, $normalId ) = @_;
 	my %outHash = ();
 	my @header  = ();
 	my (
-		 $tumorIndex, $normalIndex, $infoIndex,
-		 $chrIndex,   $startIndex,  $filterIndex
+		$tumorIndex, $normalIndex, $infoIndex,
+		$chrIndex,   $startIndex,  $filterIndex
 	);
 	open( VFH, "$dir/$vcf" ) || die "Cannot open file $dir/$vcf, Error:$!\n";
-	while (<VFH>)
-	{
+	while (<VFH>) {
 		chomp($_);
 
 		#Get the Header
-		if ( $_ =~ m/^#/ )
-		{
+		if ( $_ =~ m/^#/ ) {
+
 			#Get what is tumor what is normal
-			if ( $_ =~ m/^#CHROM/ )
-			{
+			if ( $_ =~ m/^#CHROM/ ) {
 				@header = split( "\t", $_ );
-				for ( my $i = 0 ; $i < scalar(@header) ; $i++ )
-				{
-					if ( $header[$i] =~ /$tumorId/ )
-					{
+				for ( my $i = 0 ; $i < scalar(@header) ; $i++ ) {
+					if ( $header[$i] =~ /$tumorId/ ) {
 						$tumorIndex = $i;
 					}
-					if ( $header[$i] =~ /$normalId/ )
-					{
+					if ( $header[$i] =~ /$normalId/ ) {
 						$normalIndex = $i;
 					}
-					if ( $header[$i] =~ /INFO/ )
-					{
+					if ( $header[$i] =~ /INFO/ ) {
 						$infoIndex = $i;
 					}
-					if ( $header[$i] =~ /CHROM/ )
-					{
+					if ( $header[$i] =~ /CHROM/ ) {
 						$chrIndex = $i;
 					}
-					if ( $header[$i] =~ /POS/ )
-					{
+					if ( $header[$i] =~ /POS/ ) {
 						$startIndex = $i;
 					}
-					if ( $header[$i] =~ /FILTER/ )
-					{
+					if ( $header[$i] =~ /FILTER/ ) {
 						$filterIndex = $i;
 					}
 				}
 			}
-		} else
-		{
+		}
+		else {
+
 			#Get All the Lines
 			my (@line) = split( "\t", $_ );
 
@@ -3242,14 +3075,12 @@ sub Read_VCFout
 			#Get Info column
 			my @info = split( ";", $line[$infoIndex] );
 			my %infoData = ();
-			foreach my $infoTypes (@info)
-			{
-				if ( $infoTypes =~ m/=/ )
-				{
+			foreach my $infoTypes (@info) {
+				if ( $infoTypes =~ m/=/ ) {
 					my ( $key, $value ) = split( "=", $infoTypes );
 					$infoData{$key} = $value;
-				} else
-				{
+				}
+				else {
 					$infoData{$infoTypes} = "";
 				}
 			}
@@ -3262,7 +3093,7 @@ sub Read_VCFout
 			my ( $nGT, $nGL, $nGQ, $nFT, $nRC, $nDR, $nDV, $nRR, $nRV ) =
 			  split( ":", $line[$normalIndex] );
 			my ( $svlen, $mapq, $peReads, $srReads, $svType, $svTNratio,
-				 $svChr2, $svEnd )
+				$svChr2, $svEnd )
 			  = 0.0;
 			my ( $connectionType, $str1, $str2, $bkptType, $consensusSeq ) = "";
 
@@ -3299,8 +3130,7 @@ sub Read_VCFout
 #####################################
 #This will help to Filter:
 #Somatic SVs
-sub RunAnnotateStructuralVariants
-{
+sub RunAnnotateStructuralVariants {
 	my ( $outdir, $entry, $count ) = @_;
 	my ( $svOutdir, $nFileId, $tFileId ) = split( ",", $entry );
 	my $id         = basename($svOutdir);
@@ -3327,110 +3157,154 @@ sub RunAnnotateStructuralVariants
 	my $notify_jname   = "NotifyAnno.$tFileId.$$.$count";
 	my (@checkProcess) = ();
 	my (@annoOutFiles) = ();
-	if ( $delTag == 1 )
-	{
+	if ( $delTag == 1 ) {
 		my $delAnnoCMD     = "$dRANGER $MCR $delAnnoIn $HG19MAT $delAnnoOut";
 		my $delAnno_stdout = $delAnno_jname . ".stdout";
 		my $delAnno_stderr = $delAnno_jname . ".stderr";
 		push( @checkProcess, $delAnno_jname );
-		&launchQsub(
-					 $delAnnoCMD,     $svOutdir,
-					 "5G",            $delAnno_stdout,
-					 $delAnno_stderr, "1",
-					 $runQueue,       $delAnno_jname,
-					 "Null"
-		);
+		if ( $CLUSTER eq "SGE" ) {
+			&launchQsub(
+				$delAnnoCMD,     $svOutdir,
+				"5G",            $delAnno_stdout,
+				$delAnno_stderr, "1",
+				$runQueue,       $delAnno_jname,
+				"Null"
+			);
+		}
+		else {
+			&launchBsub(
+				$delAnnoCMD,     $svOutdir,
+				"5G",            $delAnno_stdout,
+				$delAnno_stderr, "1",
+				$runQueue,       $delAnno_jname,
+				"Null"
+			);
+		}
 	}
-	if ( $dupTag == 1 )
-	{
+	if ( $dupTag == 1 ) {
 		my $dupAnnoCMD     = "$dRANGER $MCR $dupAnnoIn $HG19MAT $dupAnnoOut";
 		my $dupAnno_stdout = $dupAnno_jname . ".stdout";
 		my $dupAnno_stderr = $dupAnno_jname . ".stderr";
 		push( @checkProcess, $dupAnno_jname );
-		&launchQsub(
-					 $dupAnnoCMD,     $svOutdir,
-					 "5G",            $dupAnno_stdout,
-					 $dupAnno_stderr, "1",
-					 $runQueue,       $dupAnno_jname,
-					 "Null"
-		);
+		if ( $CLUSTER eq "SGE" ) {
+			&launchQsub(
+				$dupAnnoCMD,     $svOutdir,
+				"5G",            $dupAnno_stdout,
+				$dupAnno_stderr, "1",
+				$runQueue,       $dupAnno_jname,
+				"Null"
+			);
+		}
+		else {
+			&launchBsub(
+				$dupAnnoCMD,     $svOutdir,
+				"5G",            $dupAnno_stdout,
+				$dupAnno_stderr, "1",
+				$runQueue,       $dupAnno_jname,
+				"Null"
+			);
+		}
 	}
-	if ( $invTag == 1 )
-	{
+	if ( $invTag == 1 ) {
 		my $invAnnoCMD     = "$dRANGER $MCR $invAnnoIn $HG19MAT $invAnnoOut";
 		my $invAnno_stdout = $invAnno_jname . ".stdout";
 		my $invAnno_stderr = $invAnno_jname . ".stderr";
 		push( @checkProcess, $invAnno_jname );
-		&launchQsub(
-					 $invAnnoCMD,     $svOutdir,
-					 "5G",            $invAnno_stdout,
-					 $invAnno_stderr, "1",
-					 $runQueue,       $invAnno_jname,
-					 "Null"
-		);
+		if ( $CLUSTER eq "SGE" ) {
+			&launchQsub(
+				$invAnnoCMD,     $svOutdir,
+				"5G",            $invAnno_stdout,
+				$invAnno_stderr, "1",
+				$runQueue,       $invAnno_jname,
+				"Null"
+			);
+		}
+		else {
+			&launchBsub(
+				$invAnnoCMD,     $svOutdir,
+				"5G",            $invAnno_stdout,
+				$invAnno_stderr, "1",
+				$runQueue,       $invAnno_jname,
+				"Null"
+			);
+		}
 	}
-	if ( $jmpTag == 1 )
-	{
+	if ( $jmpTag == 1 ) {
 		my $jmpAnnoCMD     = "$dRANGER $MCR $jmpAnnoIn $HG19MAT $jmpAnnoOut";
 		my $jmpAnno_stdout = $jmpAnno_jname . ".stdout";
 		my $jmpAnno_stderr = $jmpAnno_jname . ".stderr";
 		push( @checkProcess, $jmpAnno_jname );
-		&launchQsub(
-					 $jmpAnnoCMD,     $svOutdir,
-					 "5G",            $jmpAnno_stdout,
-					 $jmpAnno_stderr, "1",
-					 $runQueue,       $jmpAnno_jname,
-					 "Null"
-		);
+		if ( $CLUSTER eq "SGE" ) {
+			&launchQsub(
+				$jmpAnnoCMD,     $svOutdir,
+				"5G",            $jmpAnno_stdout,
+				$jmpAnno_stderr, "1",
+				$runQueue,       $jmpAnno_jname,
+				"Null"
+			);
+		}
+		else {
+			&launchBsub(
+				$jmpAnnoCMD,     $svOutdir,
+				"5G",            $jmpAnno_stdout,
+				$jmpAnno_stderr, "1",
+				$runQueue,       $jmpAnno_jname,
+				"Null"
+			);
+		}
 	}
+
 	my $notify_hjname;
 	my $notify_stdout = $notify_jname . ".stat";
 	my $notify_stderr = $notify_jname . ".stderr";
 
 	#Notify CMD values
-	if ( scalar @checkProcess > 1 )
-	{
+	if ( scalar @checkProcess > 1 ) {
 		$notify_hjname = join( ",", @checkProcess );
-	} elsif ( scalar @checkProcess == 1 )
-	{
+	}
+	elsif ( scalar @checkProcess == 1 ) {
 		$notify_hjname = $checkProcess[0];
-	} else
-	{
+	}
+	else {
 		return ( "NULL", $delAnnoOut, $dupAnnoOut, $invAnnoOut, $jmpAnnoOut );
 	}
-	&launchQsub(
-				 $notify_cmd,    $outdir,
-				 "2G",           $notify_stdout,
-				 $notify_stderr, "1",
-				 $runQueue,      $notify_jname,
-				 $notify_hjname
-	);
+	if ( $CLUSTER eq "SGE" ) {
+		&launchQsub(
+			$notify_cmd,    $outdir, "2G",      $notify_stdout,
+			$notify_stderr, "1",     $runQueue, $notify_jname,
+			$notify_hjname
+		);
+	}
+	else {
+		&launchBsub(
+			$notify_cmd,    $outdir, "2G",      $notify_stdout,
+			$notify_stderr, "1",     $runQueue, $notify_jname,
+			$notify_hjname
+		);
+	}
 	return ( $notify_stdout, $delAnnoOut, $dupAnnoOut, $invAnnoOut,
-			 $jmpAnnoOut );
+		$jmpAnnoOut );
 }
 #####################################
 #####################################
 #Check if file has more then one line
-sub CheckIfFileHasContent
-{
+sub CheckIfFileHasContent {
 	my ( $svDir, $file ) = @_;
 	my $tag;
-	if ( ( -f "$svDir/$file" ) and ( -s "$svDir/$file" ) )
-	{
+	if ( ( -f "$svDir/$file" ) and ( -s "$svDir/$file" ) ) {
 		open( FH, "$svDir/$file" )
 		  || die "Cannot Open $svDir/$file.Error:$!\n";
 		my $lines = 0;
 		$lines++ while (<FH>);
 		close(FH);
-		if ( $lines > 1 )
-		{
+		if ( $lines > 1 ) {
 			$tag = "1";
-		} else
-		{
+		}
+		else {
 			$tag = "2";
 		}
-	} else
-	{
+	}
+	else {
 		$tag = "2";
 	}
 	return ($tag);
