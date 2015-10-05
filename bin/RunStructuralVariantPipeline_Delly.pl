@@ -2516,21 +2516,28 @@ sub launchBsub {
 		$cmd,        $outdir, $mem,     $stdout, $stderr,
 		$processors, $queue,  $jobname, $holdjobname
 	) = @_;
+	
 	my $bcmd = "";
+	
 	($mem) = $mem =~ /(\d+)G/g;
 	my $tmem = $mem + 5;
-	my @hjname = split(",",$holdjobname);
-	my $new_holdjobname = "";
-	if(scalar @hjname > 1){
-		my @jobs = ()
-		foreach my $name (@hjname){
-			my $postname = "post_done(" . $name . ")";
-			push(@jobs,$postname);
+	if($holdjobname){
+		my @hjname = split(",",$holdjobname);
+		my $new_holdjobname = "";
+		if(scalar @hjname > 1)
+		{
+			my @jobs = ()
+			foreach my $name (@hjname)
+			{
+				my $postname = "post_done(" . $name . ")";
+				push(@jobs,$postname);
+			}
+			$new_holdjobname = join(" && ", @jobs);
 		}
-		$new_holdjobname = join(" && ", @jobs);
-	}
-	else{
-		$new_holdjobname = "post_done(" . $hjname[0] . ")";
+		else
+		{
+			$new_holdjobname = "post_done(" . $hjname[0] . ")";
+		}
 	}
 	#Run Job with hold job id
 	if ( $holdjobname ne "Null" ) {
