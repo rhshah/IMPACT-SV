@@ -2513,12 +2513,12 @@ sub launchQsub {
 #Run the the cmd as bsub
 sub launchBsub {
 	my (
-		$cmd,        $outdir, $mem, $tmem,     $stdout, $stderr,
+		$cmd,        $outdir, $mem,     $stdout, $stderr,
 		$processors, $queue,  $jobname, $holdjobname
 	) = @_;
 	my $bcmd = "";
 	$mem = $mem =~ /(\d+)G/;
-	$tmem = $mem + 5;
+	my $tmem = $mem + 5;
 	#Run Job with hold job id
 	if ( $holdjobname ne "Null" ) {
 		$bcmd =
