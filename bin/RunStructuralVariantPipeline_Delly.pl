@@ -2521,12 +2521,13 @@ sub launchBsub {
 	
 	($mem) = $mem =~ /(\d+)G/g;
 	my $tmem = $mem + 5;
-	if($holdjobname){
-		my @hjname = split(",",$holdjobname);
-		my $new_holdjobname = "";
+	my $new_holdjobname = "";
+	if($holdjobname)
+	{
+		my(@hjname) = split(",",$holdjobname);
 		if(scalar @hjname > 1)
 		{
-			my @jobs = ()
+			my @jobs = ();
 			foreach my $name (@hjname)
 			{
 				my $postname = "post_done(" . $name . ")";
