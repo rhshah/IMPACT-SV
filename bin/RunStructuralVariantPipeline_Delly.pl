@@ -2513,7 +2513,7 @@ sub launchQsub {
 #Run the the cmd as bsub
 sub launchBsub {
 	my (
-		$cmd,        $outdir, $mem,     $stdout, $stderr,
+		$cmd,        $outdir, $mem, $tmem,     $stdout, $stderr,
 		$processors, $queue,  $jobname, $holdjobname
 	) = @_;
 	my $bcmd = "";
