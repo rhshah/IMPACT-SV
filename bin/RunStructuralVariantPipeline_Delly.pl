@@ -2517,7 +2517,7 @@ sub launchBsub {
 		$processors, $queue,  $jobname, $holdjobname
 	) = @_;
 	my $bcmd = "";
-	$mem = $mem =~ /(\d+)G/;
+	($mem) = $mem =~ /(\d+)G/g;
 	my $tmem = $mem + 5;
 	my @hjname = split(",",$holdjobname);
 	my $new_holdjobname = "";
