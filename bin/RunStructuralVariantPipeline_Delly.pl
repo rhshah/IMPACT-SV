@@ -2524,10 +2524,10 @@ sub launchBsub {
 	if(scalar @hjname > 1){
 		my @jobs = ()
 		foreach my $name (@hjname){
-			$postname = "post_done(" . $name . ")";
+			my $postname = "post_done(" . $name . ")";
 			push(@jobs,$postname)
 		}
-		$new_holdjobname = join(@jobs," && ");
+		$new_holdjobname = join(" && ", @jobs);
 	}
 	else{
 		$new_holdjobname = "post_done(" . $hjname[0] . ")";
