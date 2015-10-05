@@ -2525,7 +2525,7 @@ sub launchBsub {
 		my @jobs = ()
 		foreach my $name (@hjname){
 			my $postname = "post_done(" . $name . ")";
-			push(@jobs,$postname)
+			push(@jobs,$postname);
 		}
 		$new_holdjobname = join(" && ", @jobs);
 	}
