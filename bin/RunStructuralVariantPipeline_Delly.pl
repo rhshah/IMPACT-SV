@@ -2519,10 +2519,23 @@ sub launchBsub {
 	my $bcmd = "";
 	$mem = $mem =~ /(\d+)G/;
 	my $tmem = $mem + 5;
+	my @hjname = split(",",$holdjobname);
+	my $new_holdjobname = "";
+	if(scalar @hjname > 1){
+		my @jobs = ()
+		foreach my $name (@hjname){
+			$postname = "post_done(" . $name . ")";
+			push(@jobs,$postname)
+		}
+		$new_holdjobname = join(@jobs," && ");
+	}
+	else{
+		$new_holdjobname = "post_done(" . $hjname[0] . ")";
+	}
 	#Run Job with hold job id
 	if ( $holdjobname ne "Null" ) {
 		$bcmd =
-"$BSUB -q $queue -cwd $outdir -w \"post_done($holdjobname)\" -J $jobname -o $stdout -e $stderr -We 24:00 -R \"rusage[mem=$mem]\" -M $tmem -n $processors \"$cmd\"";
+"$BSUB -q $queue -cwd $outdir -w \"$new_holdjobname\" -J $jobname -o $stdout -e $stderr -We 24:00 -R \"rusage[mem=$mem]\" -M $tmem -n $processors \"$cmd\"";
 		eval {
 			print "CMD:$bcmd\n";
 			`$bcmd`;
