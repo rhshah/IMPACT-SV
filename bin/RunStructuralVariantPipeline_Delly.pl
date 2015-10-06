@@ -3005,10 +3005,10 @@ sub Read_dRangerOut {
 			$transcript1, $gene2, $site2, $transcript2,
 			$fusion
 		) = split( "\t", $_ );
-		$chr1 = "X" if ( $chr1 == 23 );
-		$chr2 = "X" if ( $chr2 == 23 );
-		$chr1 = "Y" if ( $chr1 == 24 );
-		$chr2 = "Y" if ( $chr2 == 24 );
+		$chr1 = "X" if ( $chr1 eq "23" );
+		$chr2 = "X" if ( $chr2 eq "23" );
+		$chr1 = "Y" if ( $chr1 eq "24" );
+		$chr2 = "Y" if ( $chr2 eq "24" );
 		$outHash{"$chr1:$pos1:$str1:$chr2:$pos2:$str2"} =
 "$str1;$str2;$gene1;$gene2;$transcript1;$transcript2;$site1;$site2;$fusion";
 	}
