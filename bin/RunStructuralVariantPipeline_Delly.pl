@@ -2516,30 +2516,27 @@ sub launchBsub {
 		$cmd,        $outdir, $mem,     $stdout, $stderr,
 		$processors, $queue,  $jobname, $holdjobname
 	) = @_;
-	
+
 	my $bcmd = "";
-	
+
 	($mem) = $mem =~ /(\d+)G/g;
-	my $tmem = $mem + 5;
+	my $tmem            = $mem + 5;
 	my $new_holdjobname = "";
-	if($holdjobname)
-	{
-		my(@hjname) = split(",",$holdjobname);
-		if(scalar @hjname > 1)
-		{
+	if ($holdjobname) {
+		my (@hjname) = split( ",", $holdjobname );
+		if ( scalar @hjname > 1 ) {
 			my @jobs = ();
-			foreach my $name (@hjname)
-			{
+			foreach my $name (@hjname) {
 				my $postname = "post_done(" . $name . ")";
-				push(@jobs,$postname);
+				push( @jobs, $postname );
 			}
-			$new_holdjobname = join(" && ", @jobs);
+			$new_holdjobname = join( " && ", @jobs );
 		}
-		else
-		{
+		else {
 			$new_holdjobname = "post_done(" . $hjname[0] . ")";
 		}
 	}
+
 	#Run Job with hold job id
 	if ( $holdjobname ne "Null" ) {
 		$bcmd =
@@ -2842,7 +2839,8 @@ sub MergeAllFiles {
 			tie( my %delHash, 'Tie::IxHash' );
 			%delHash = %$delData;
 			foreach my $record ( sort keys %delHash ) {
-				my ( $chr1, $pos1,$str1, $chr2, $pos2,$str2 ) = split( ":", $record );
+				my ( $chr1, $pos1, $str1, $chr2, $pos2, $str2 ) =
+				  split( ":", $record );
 				my (
 					$svType,      $gene1,       $gene2,
 					$transcript1, $transcript2, $site1,
@@ -2861,7 +2859,8 @@ sub MergeAllFiles {
 			tie( my %dupHash, 'Tie::IxHash' );
 			%dupHash = %$dupData;
 			foreach my $record ( sort keys %dupHash ) {
-				my ( $chr1, $pos1,$str1, $chr2, $pos2,$str2 ) = split( ":", $record );
+				my ( $chr1, $pos1, $str1, $chr2, $pos2, $str2 ) =
+				  split( ":", $record );
 				my (
 					$svType,      $gene1,       $gene2,
 					$transcript1, $transcript2, $site1,
@@ -2880,7 +2879,8 @@ sub MergeAllFiles {
 			tie( my %invHash, 'Tie::IxHash' );
 			%invHash = %$invData;
 			foreach my $record ( sort keys %invHash ) {
-				my ( $chr1, $pos1,$str1, $chr2, $pos2,$str2 ) = split( ":", $record );
+				my ( $chr1, $pos1, $str1, $chr2, $pos2, $str2 ) =
+				  split( ":", $record );
 				my (
 					$svType,      $gene1,       $gene2,
 					$transcript1, $transcript2, $site1,
@@ -2899,7 +2899,8 @@ sub MergeAllFiles {
 			tie( my %jmpHash, 'Tie::IxHash' );
 			%jmpHash = %$jmpData;
 			foreach my $record ( sort keys %jmpHash ) {
-				my ( $chr1, $pos1,$str1, $chr2, $pos2,$str2 ) = split( ":", $record );
+				my ( $chr1, $pos1, $str1, $chr2, $pos2, $str2 ) =
+				  split( ":", $record );
 				my (
 					$svType,      $gene1,       $gene2,
 					$transcript1, $transcript2, $site1,
@@ -2999,7 +3000,12 @@ sub Read_dRangerOut {
 	while (<DFH>) {
 		chomp;
 		next if ( $. == 1 );
-		my ($chr1, $pos1, $str1, $chr2, $pos2, $str2,  $gene1, $site1, $transcript1, $gene2, $site2, $transcript2, $fusion) = split( "\t", $_ );
+		my (
+			$chr1,        $pos1,  $str1,  $chr2,
+			$pos2,        $str2,  $gene1, $site1,
+			$transcript1, $gene2, $site2, $transcript2,
+			$fusion
+		) = split( "\t", $_ );
 		$chr1 = "X" if ( $chr1 =~ /23/ );
 		$chr2 = "X" if ( $chr2 =~ /23/ );
 		$chr1 = "Y" if ( $chr1 =~ /24/ );
