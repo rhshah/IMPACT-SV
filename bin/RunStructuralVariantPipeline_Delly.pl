@@ -368,7 +368,15 @@ else {
 	Usage();
 	exit;
 }
-
+#Check  for queue
+if ( !$queue )
+{
+	$logger->info("Name of the SGE/LSF queue not given default will be used");
+	$queue = "all.q";
+} else
+{
+	$logger->info("SGE/LSF Queue:$queue");
+}
 #Check if path to FilterSV script is given
 if ( !$FilterSV ) {
 	$FilterSV = $binPath . "/FilterSV.pl";
