@@ -371,11 +371,11 @@ else {
 #Check  for queue
 if ( !$queue )
 {
-	$logger->info("Name of the SGE/LSF queue not given default will be used");
+	print "Name of the SGE/LSF queue not given default will be used\n";
 	$queue = "all.q";
 } else
 {
-	$logger->info("SGE/LSF Queue:$queue");
+	print "SGE/LSF Queue:$queue\n";
 }
 #Check if path to FilterSV script is given
 if ( !$FilterSV ) {
