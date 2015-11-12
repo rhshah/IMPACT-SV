@@ -2548,7 +2548,7 @@ sub launchBsub {
 	#Run Job with hold job id
 	if ( $holdjobname ne "Null" ) {
 		$bcmd =
-"$BSUB -q $queue -cwd $outdir -w \"$new_holdjobname\" -J $jobname -o $stdout -e $stderr -We 24:00 -R \"rusage[mem=$mem]\" -M $tmem -n $processors \"$cmd\"";
+"$BSUB -q $queue -cwd $outdir -w \"$new_holdjobname\" -J $jobname -o $stdout -e $stderr -We 1:00 -R \"rusage[mem=$mem]\" -M $tmem -n $processors \"$cmd\"";
 		eval {
 			print "CMD:$bcmd\n";
 			`$bcmd`;
@@ -2562,7 +2562,7 @@ sub launchBsub {
 	#Run Jobs without hold job Id
 	if ( $holdjobname eq "Null" ) {
 		$bcmd =
-"$BSUB -q $queue -cwd $outdir -J $jobname -o $stdout -e $stderr -R \"rusage[mem=$mem]\" -M $tmem -n $processors \"$cmd\"";
+"$BSUB -q $queue -cwd $outdir -J $jobname -o $stdout -e $stderr -We 2:00 -R \"rusage[mem=$mem]\" -M $tmem -n $processors \"$cmd\"";
 		eval {
 			print "CMD:$bcmd\n";
 			`$bcmd`;
