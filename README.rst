@@ -1,3 +1,7 @@
+**NOTE:**
+
+This code base is deprecated, thus it will be no longer maintained, we have a newer and much better version to do structural variant calling which is available here: `iCallSV <https://github.com/rhshah/iCallSV>`_
+
 IMPACT-SV: MSK-IMPACT assay data analysis framework to Detect/Annotate structural abberation using LSF/SGE
 ==========================================================================================================
 
